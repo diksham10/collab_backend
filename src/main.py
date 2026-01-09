@@ -13,12 +13,15 @@ from fastapi import FastAPI
 # from src.otp.models import OtpModel
 # from src.ratings.models import Rating
 from src.auth.router import router as auth_router
+from src.otp.router import router as otp_router
 from src.test.router import router as test_router
 
 app=FastAPI()
 
 app.include_router(auth_router, tags=["user"])
+app.include_router(otp_router,tags=["otp"])
 app.include_router(test_router, prefix="/test", tags=["test"])
+
 
 
 # SQLModel.metadata.create_all(engine)

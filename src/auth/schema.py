@@ -1,30 +1,32 @@
 # pydantic data validation for various user activities such as creation login token
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from typing import Optional
 import datetime
 from src.myenums import UserRole
 from uuid import UUID
 
 
+
 #for registering user
 class UserCreate(BaseModel):
-    email: str
+    email: EmailStr
     username: str
     password: str
     role: UserRole
 
 #for logging in user
 class UserLogin(BaseModel):
-    email: str
+    email: EmailStr
     password: str
 
 #for returning 
 class UserRead(BaseModel):
     id: UUID
     username: str
-    email:str
+    email:EmailStr
     role: UserRole
     is_active: bool
+    is_verified: bool
     
     model_config ={
         "from_attributes": True
@@ -32,7 +34,7 @@ class UserRead(BaseModel):
 
 #for updating user
 class UserUpdate(BaseModel):
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     password: Optional[str] = None
     role: Optional[UserRole] = None
 
@@ -43,7 +45,7 @@ class ChangePassword(BaseModel):
 
 #for resetting password
 class ResetPassword(BaseModel):
-    email: str
+    email: EmailStr
     new_password: str
 
 
@@ -52,3 +54,8 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"   
 
+
+class RegisterResponse(BaseModel):
+    message: str
+    auth_token: Optional[str] = None
+    

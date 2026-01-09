@@ -5,6 +5,8 @@ from src.config  import settings
 
 
 async def send_email(to_mail: str, subject: str, body:str):
+
+    
     
     msg=MIMEMultipart()
     msg["From"] = settings.EMAIL_FROM

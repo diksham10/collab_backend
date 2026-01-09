@@ -1,5 +1,6 @@
 # passworf verify authentication creating token type functions in this
 from src.auth.schema import UserCreate,UserUpdate,ChangePassword, ResetPassword
+from sqlalchemy import or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from src.auth.models import Users
@@ -47,54 +48,48 @@ async def create_user(user_in: UserCreate, db: AsyncSession ) -> Users:
             detail="Email or username already exists"
         )
 
-# async def authenticate_user(email: str, password: str, db: AsyncSession) -> Optional[Users]:
-#     result =await db.execute(
-#         select(Users).where(Users.email == email)
-#     )
-#     user= result.scalars().first()
-#     stored_password = user.hashed_password if user else ""
-#     if not user or not verify_password(password, stored_password):
-#         return None
-#     return user
-  # your password verification function
 import logging
 
 logger = logging.getLogger(__name__)
 
 async def authenticate_user(
-    email: str,
+    identifier: str,
     password: str,
     db: AsyncSession
 ) -> Optional[Users]:
-    """
-    Authenticate a user by email and password.
-
-    Args:
-        email (str): User email.
-        password (str): Plain text password.
-        db (AsyncSession): Async SQLAlchemy session.
-
-    Returns:
-        Optional[Users]: Returns the user object if authentication succeeds, else None.
-    """
     try:
         # Fetch the user asynchronously
-        result = await db.execute(select(Users).where(Users.email == email))
+        result = await db.execute(
+        select(Users).where(
+            or_(                        #it is tio check either username or email
+                Users.email == identifier,
+                Users.username == identifier
+            )
+        )
+    )
         user = result.scalars().first()
 
         if not user:
-            logger.info(f"Authentication failed: user not found for email {email}")
+            logger.info(f"Authentication failed: user not found for email {identifier}")
             return None
 
         # Verify password
         if not verify_password(password, user.hashed_password):
-            logger.info(f"Authentication failed: incorrect password for email {email}")
+            logger.info(f"Authentication failed: incorrect password for email {identifier}")
             return None
-
+        
+        if not user.is_active:
+            logger.info(f"Authentication failed: inactive user for email {identifier}")
+            return None
+        if not user.is_verified:
+            logger.info(f"Authentication failed: unverified user for email {identifier}")
+            return None
+        
         return user
+    
 
     except Exception as e:
-        logger.error(f"Authentication error for email {email}: {str(e)}", exc_info=True)
+        logger.error(f"Authentication error for email {identifier}: {str(e)}", exc_info=True)
         return None
 
 
@@ -118,19 +113,25 @@ def decode_access_token(token: str) -> Optional[int]:
     except JWTError:
         return None
     
+
+
 async def update_user(user: Users, user_in: UserUpdate, db: AsyncSession) -> Users:
     if user_in.email is not None:
         user.email = user_in.email
-    if user_in.password is not None:
+
+    if user_in.password: 
         user.hashed_password = hash_password(user_in.password)
+
     if user_in.role is not None:
-        user.role = user_in.role
-    
+        user.role = user_in.role  # or UserRole(user_in.role) if needed
+
     user.updated_at = datetime.utcnow()
-    db.add(user)
+
+    # db.add(user)  # unnecessary if user is already in session
     await db.commit()
     await db.refresh(user)
     return user
+
 
 async def change_password(user: Users, password: ChangePassword, db: AsyncSession) -> Users:
     if not verify_password(password.old_password, user.hashed_password):

@@ -2,13 +2,18 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from typing import Optional,List
 from jose import jwt, JWTError
 from src.auth.models import Users
 from src.database import get_session
 from uuid import UUID
-SECRET_KEY = "your-secret-key"
-ALGORITHM = "HS256"
+from dotenv import load_dotenv
+from os import getenv
+load_dotenv()
+
+SECRET_KEY = getenv("SECRET_KEY")
+ALGORITHM = getenv("ALGORITHM")
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
 
@@ -19,12 +24,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: Optional[UUID] = payload.get("sub")
+        print(f"Decoded user_id from token: {user_id}")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Invalid user ID in token")
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
     
-    result = await db.execute("SELECT * FROM users WHERE id = :id", {"id": user_id})
+    result = await db.execute(select(Users).where(Users.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")

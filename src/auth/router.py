@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.auth.schema import UserCreate, UserLogin, UserRead, UserUpdate, ChangePassword, ResetPassword, Token
+from src.auth.schema import UserCreate,RegisterResponse, UserLogin, UserRead, UserUpdate, ChangePassword, ResetPassword, Token
 from src.auth.service import create_user, authenticate_user, create_access_token, update_user, change_password, reset_password
 from src.database import get_session
 from src.auth.models import Users
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/user", tags=["user"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
 
 
-@router.post("/register", response_model=UserRead)
+@router.post("/register", response_model=RegisterResponse)
 async def register(user_in: UserCreate, db: AsyncSession = Depends(get_session)):
     print(f"user registration called  {user_in}")
     result=await db.execute(select(Users).where(Users.email == user_in.email))
@@ -25,8 +25,9 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_session))
     if user_exists:
         raise HTTPException(status_code=400, detail="Email already registered")
     new_user = await create_user(user_in, db)
-    # await create_send_otp(db, new_user, subject="Verify your email")
-    return new_user
+    await create_send_otp(db, new_user, subject="Verify your email")
+    auth_token = create_access_token(new_user.id)
+    return RegisterResponse(message="User registered successfully. Please verify your email.", auth_token=auth_token)
 
 
 @router.post("/login", response_model=Token)
@@ -59,7 +60,7 @@ async def update_current_user(
 
 
 @router.post("/me/change-password", response_model=UserRead)
-async def change_password(password_data: ChangePassword, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+async def change_current_password(password_data: ChangePassword, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     try:
         updated_user = await change_password(current_user, password_data, db)
         return updated_user
