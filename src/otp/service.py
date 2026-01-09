@@ -17,7 +17,7 @@ async def create_send_otp(session: AsyncSession, user: Users, subject:str):
     otp = generate_otp()
     
     now= datetime.utcnow()
-    expires= now  + timedelta(minutes=5)
+    expires= now  + timedelta(minutes=500)
 
     new_otp = OtpModel(
         user_id = user.id,
@@ -33,7 +33,7 @@ async def create_send_otp(session: AsyncSession, user: Users, subject:str):
     await send_email(
         to_mail = user.email,
         subject = subject,
-        body = f"Your OTP code is {otp}. It will expire in 5 minutes."
+        body = f"Your OTP code is {otp}. It will expire in 500 minutes."
     )
 
 async def verify_otp(session: AsyncSession, user_email:str, otp_code: str) -> bool:

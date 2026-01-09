@@ -1,9 +1,10 @@
 #create api router in this.
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Form
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from fastapi.security import OAuth2PasswordBearer
 from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.auth.schema import UserCreate,RegisterResponse, UserLogin, UserRead, UserUpdate, ChangePassword, ResetPassword, Token
@@ -14,7 +15,7 @@ from src.auth.dependencies import get_current_user
 from src.otp.service import create_send_otp, verify_otp
 
 router = APIRouter(prefix="/user", tags=["user"])
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/user/login")
+
 
 
 @router.post("/register", response_model=RegisterResponse)
@@ -32,11 +33,12 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_session))
 
 @router.post("/login", response_model=Token)
 async def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),
+    user_in: UserLogin,
     db: AsyncSession = Depends(get_session)
 ):
+    
     # form_data.username is the email
-    user = await authenticate_user(form_data.username, form_data.password, db)
+    user = await authenticate_user(user_in.username, user_in.password, db)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
@@ -76,4 +78,30 @@ async def reset_password_endpoint(reset_data: ResetPassword, db: AsyncSession = 
     return user
 
 
+@router.post("/token", response_model=Token, summary="Get Token (OAuth2)")
+async def get_token(
+    username: str = Form(..., description="Email address"),
+    password: str = Form(...),
+    grant_type: Optional[str] = Form(None),
+    scope: str = Form(""),
+    client_id: Optional[str] = Form(None),
+    client_secret: Optional[str] = Form(None),
+    db: AsyncSession = Depends(get_session)
+):
+    """
+    OAuth2 compatible token endpoint for Swagger UI.
+    This endpoint accepts form-data (application/x-www-form-urlencoded).
     
+    Use the 🔓 Authorize button in Swagger to test this.
+    """
+    user = await authenticate_user(username, password, db)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(user.id)
+    return {"access_token": access_token, "token_type": "bearer"}
+

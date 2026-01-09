@@ -18,9 +18,9 @@ async def generate_otp(user_in :Users, db: AsyncSession = Depends(get_session)):
 @router.post("/verify_otp")
 async def verify_otp_endpoint(user_in :VerifyOtp, db: AsyncSession = Depends(get_session)):
     email = user_in.email
-    otp_code = user_in.otp_code
+    otp = user_in.otp
 
-    is_valid = await verify_otp(db, email, otp_code)
+    is_valid = await verify_otp(db, email, otp)
     if is_valid:
         return {"message": "OTP is valid"}
     else:
