@@ -52,7 +52,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-async def authenticate_user(
+async def   authenticate_user(
     identifier: str,
     password: str,
     db: AsyncSession
@@ -93,11 +93,12 @@ async def authenticate_user(
         return None
 
 
-def create_access_token(user_id:str) -> str:
+def create_access_token(user_id:str, user_role:str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     payload = {
         "sub": str(user_id),
+        "role": user_role,
         "exp": expire,
         "iat": datetime.now(timezone.utc),
     }

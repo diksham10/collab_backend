@@ -27,7 +27,7 @@ class InfluencerProfile(SQLModel, table=True):
 
 class SocialLink(SQLModel, table=True):
     id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
-    influencer_profile_id: UUID = Field(foreign_key="influencerprofile.id")
+    influencer_profile_id: UUID = Field(foreign_key="influencerprofile.id")   #social link id =influencer profile id
     platform: SocialPlatform
     url: str
     followers: Optional[int] = None

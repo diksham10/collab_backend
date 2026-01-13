@@ -7,8 +7,6 @@ if TYPE_CHECKING:
     from event.models import Event
 
 class BrandProfile(SQLModel, table=True):
-    __tablename__ = "brand_profile"
-
     id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id", nullable=False)
     name: str

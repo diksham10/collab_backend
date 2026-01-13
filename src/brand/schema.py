@@ -13,6 +13,7 @@ class BrandCreate(BaseModel):
 
 
 class BrandRead(BaseModel):
+    id: UUID
     name: str
     description: Optional[str]
     location: Optional[str]

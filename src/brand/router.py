@@ -1,17 +1,32 @@
 from fastapi import APIRouter, Depends
-from src.brand.service import create_brand, get_brands, get_brand_by_id
-from src.brand.schema import BrandCreate, BrandRead
+from src.database import get_session
+from src.brand.service import create_brand, get_brands, delete_brand, update_brand
+from src.brand.schema import BrandCreate, BrandRead, BrandUpdate
+from src.auth.models import Users
+from src.auth.dependencies import get_current_user
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 router = APIRouter()
 
-router.post("/create_profile", response_model= BrandCreate)
+@router.post("/create_brandprofile", response_model= BrandCreate)
+async def create_brandprofile( brand_in: BrandCreate,current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    new_brand = await create_brand(current_user,brand_in,db)
+    return new_brand
 
 
+@router.get("/brandsbyuser", response_model= list[BrandRead])
+async def get_brand(current_user: Users = Depends(get_current_user), db: AsyncSession=Depends(get_session)):
+    brands = await get_brands(current_user, db)
+    return brands
 
+@router.put("/update_brandprofile/{brand_id}", response_model= BrandRead)
+async def update_brandprofile(brand_id: str, brand_in: BrandUpdate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    updated_brand = await update_brand(current_user, brand_id, brand_in, db)
+    return updated_brand
 
-
-
-router.get("/brand/me{id}", response_model=BrandRead)
+@router.delete("/delete_brandprofile/{brand_id}")
+async def delete_brandprofile(brand_id: str, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    await delete_brand(current_user, brand_id, db)
+    return {"message": "Brand profile deleted successfully"}

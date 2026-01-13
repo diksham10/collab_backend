@@ -27,7 +27,7 @@ async def register(user_in: UserCreate, db: AsyncSession = Depends(get_session))
         raise HTTPException(status_code=400, detail="Email already registered")
     new_user = await create_user(user_in, db)
     await create_send_otp(db, new_user, subject="Verify your email")
-    auth_token = create_access_token(new_user.id)
+    auth_token = create_access_token(new_user.id, new_user.role)
     return RegisterResponse(message="User registered successfully. Please verify your email.", auth_token=auth_token)
 
 
@@ -37,12 +37,11 @@ async def login(
     db: AsyncSession = Depends(get_session)
 ):
     
-    # form_data.username is the email
     user = await authenticate_user(user_in.username, user_in.password, db)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    access_token = create_access_token(user.id)
+    access_token = create_access_token(user.id, user.role)
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -102,6 +101,6 @@ async def get_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    access_token = create_access_token(user.id)
+    access_token = create_access_token(user.id, user.role)
     return {"access_token": access_token, "token_type": "bearer"}
 

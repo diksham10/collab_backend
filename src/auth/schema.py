@@ -21,7 +21,6 @@ class UserLogin(BaseModel):
 
 #for returning 
 class UserRead(BaseModel):
-    id: UUID
     username: str
     email:EmailStr
     role: UserRole

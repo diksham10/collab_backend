@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class Event(SQLModel, table=True):
     id: Optional[UUID] = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="users.id")
-    brand_id: UUID = Field(foreign_key="brand_profile.id")
+    brand_id: UUID = Field(foreign_key="brandprofile.id")
     title: str
     description: Optional[str] = None
     objectives: Optional[str] = None
