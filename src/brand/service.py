@@ -7,24 +7,23 @@ from src.brand.models import BrandProfile
 from datetime import datetime, timedelta, timezone
 from src.auth.dependencies import get_current_user
 
-# to create a brand limit= 4
-async def create_brand(current_user: Users, brand_data: BrandCreate, db: AsyncSession):
 
-    result = await db.execute(select(Users).where(Users.id == current_user.id))
-    user = result.scalar_one_or_none()
 
+async def create_brand( brand_data: BrandCreate, current_user: Users, db: AsyncSession ) :
+    
+
+    if current_user.role != "brand":
+        raise HTTPException(status_code=403, detail="Only brand users can create brands")  
     result1 = await db.execute(select(BrandProfile).where(BrandProfile.user_id == current_user.id))
     brand_count = len(result1.scalars().all())
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    if user.role != "brand":
-        raise HTTPException(status_code=403, detail="Only brand users can create brands")   
-    if brand_count >= 4:
-        raise HTTPException(status_code=400, detail="Brand limit reached. Cannot create more brands.")
+    if brand_count >=4:
+        raise HTTPException(status_code=403, detail="Brand limit reached. Cannot create more brands.") 
+     
     new_brand = BrandProfile(
 
         user_id = current_user.id,
         name = brand_data.name,
+        location= brand_data.location,
         description = brand_data.description,
         website_url = brand_data.website_url,
         created_at=datetime.utcnow().isoformat(),
@@ -46,6 +45,7 @@ async def get_brands(current_user: Users=Depends(get_current_user), db: AsyncSes
     if not brands:
         raise HTTPException(status_code=404, detail="Brand not found")
     return brands   
+
 
 async def update_brand(current_user: Users, brand_id: str, brand_data: BrandUpdate, db: AsyncSession):
     result = await db.execute(select(Users).where(Users.id == current_user.id))

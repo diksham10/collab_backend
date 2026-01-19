@@ -4,17 +4,18 @@ from src.brand.service import create_brand, get_brands, delete_brand, update_bra
 from src.brand.schema import BrandCreate, BrandRead, BrandUpdate
 from src.auth.models import Users
 from src.auth.dependencies import get_current_user
+from src.brand.dependencies import check_brand_limit
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
 router = APIRouter()
 
-@router.post("/create_brandprofile", response_model= BrandCreate)
-async def create_brandprofile( brand_in: BrandCreate,current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    new_brand = await create_brand(current_user,brand_in,db)
+@router.post("/create_brandprofile", response_model= BrandRead)
+async def create_brandprofile( brand_in: BrandCreate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session),_: None = Depends(check_brand_limit)):
+    new_brand = await create_brand(brand_in, current_user, db)
     return new_brand
-
+db: AsyncSession = Depends(get_session)
 
 @router.get("/brandsbyuser", response_model= list[BrandRead])
 async def get_brand(current_user: Users = Depends(get_current_user), db: AsyncSession=Depends(get_session)):

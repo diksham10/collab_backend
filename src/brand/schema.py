@@ -5,11 +5,11 @@ from uuid import UUID
 
 class BrandCreate(BaseModel):
     name: str
-    description: Optional[str]
-    location: Optional[str]
-    website_url: Optional[str]
-    created_at : Optional[str]
-    updated_at: Optional[str]
+    description: Optional[str]=None
+    location: Optional[str]=None
+    website_url: Optional[str]=None
+    created_at : Optional[str]=None
+    updated_at: Optional[str]=None
 
 
 class BrandRead(BaseModel):
@@ -26,11 +26,11 @@ class BrandRead(BaseModel):
     }
 
 class BrandUpdate(BaseModel):
-    name: Optional[str]
-    description: Optional[str]
-    location: Optional[str]
-    website_url: Optional[str]
-    updated_at: Optional[str]
+    name: Optional[str] = None
+    description: Optional[str] = None
+    location: Optional[str] = None
+    website_url: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 

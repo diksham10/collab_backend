@@ -16,6 +16,7 @@ class Message(SQLModel, table=True):
     content: str
     sent_at: datetime = Field(default_factory=datetime.utcnow)
     is_read: bool = False
+    is_delivered: bool = False
 
     # Relationships (use forward references as strings)
     sender: "Users" = Relationship(

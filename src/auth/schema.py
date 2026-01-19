@@ -55,6 +55,7 @@ class Token(BaseModel):
 
 
 class RegisterResponse(BaseModel):
+    email: str
     message: str
     auth_token: Optional[str] = None
     

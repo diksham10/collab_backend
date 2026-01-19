@@ -37,10 +37,10 @@ async def get_sociallinks(current_user: Users = Depends(get_current_user), db: A
     social_links = await get_social_links(current_user, db)
     return social_links
 
-@router.put("/update_influencerprofile/{influencer_id}", response_model= InfluencerRead )
-async def update_influencerprofile(influencer_id: str, influencer_in: InfluencerUpdate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    updated_influencer = await update_influencer(current_user, influencer_id, influencer_in, db)
-    return updated_influencer
+@router.patch("/update_sociallink/{sociallink_id}", response_model= SocialLinkRead )
+async def update_sociallink(sociallink_id: str, sociallink_in: SocialLinkCreate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    updated_sociallink = await create_social_link(current_user, sociallink_in, db, sociallink_id)
+    return updated_sociallink
 
 @router.delete("/delete_sociallink/{sociallink_id}")
 async def delete_sociallink(sociallink_id: str, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):

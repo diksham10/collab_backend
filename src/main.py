@@ -5,7 +5,12 @@ from src.database import engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
+from fastapi.responses import HTMLResponse
+from src.middleware.logging import logging_middleware
 app=FastAPI()
+
+app.middleware("http")(logging_middleware)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,12 +30,24 @@ from src.otp.router import router as otp_router
 from src.test.router import router as test_router
 from src.brand.router import router as brand_router
 from src.influencer.router import router as influencer_router
+from src.event.router import router as event_router
 
 app.include_router(auth_router, tags=["user"])
 app.include_router(otp_router,tags=["otp"])
 app.include_router(test_router, prefix="/test", tags=["test"])
 app.include_router(brand_router, prefix="/brand", tags=["brand"])
 app.include_router(influencer_router, prefix="/influencer", tags=["influencer"])
+app.include_router(event_router, prefix="/event", tags=["event"])
+
+
+from scalar_fastapi import get_scalar_api_reference
+
+@app.get("/scalar", include_in_schema=False)
+async def scalar_html():
+    return get_scalar_api_reference(
+        openapi_url=app.openapi_url,
+        scalar_proxy_url="https://proxy.scalar.com"
+    )
 
 
 
@@ -63,4 +80,8 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
-# SQLModel.metadata.create_all(engine) #becuse async engine, we cant use this method to create tables
+
+@app.get("/")
+async def read_root():
+    return {"message": "hi baby"}
+# SQLModel.metadata.create_all(engine) #because async engine, we cant use this method to create tables

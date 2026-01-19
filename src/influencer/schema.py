@@ -5,6 +5,7 @@ from src.myenums import SocialPlatform
 
 
 class InfluencerCreate(BaseModel):
+    id:UUID
     name: str
     niche: Optional[str] = None
     audience_size: Optional[int] = None
@@ -57,7 +58,7 @@ class SocialLinkRead(BaseModel):
     model_config = {
         "from_attributes": True
     }
-    
+
 class SocialLinkUpdate(BaseModel):
     platform: Optional[SocialPlatform] = None
     url: Optional[str] = None

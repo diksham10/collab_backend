@@ -1,0 +1,71 @@
+from pydantic import BaseModel
+from typing import Optional
+from uuid import UUID
+from datetime import datetime, date
+
+class EventCreate(BaseModel):
+
+    title: str
+    description: Optional[str] = None
+    objectives: Optional[str] = None
+    budget: Optional[float] = None
+    start_date: Optional[str]
+    end_date: Optional[str]
+    deliverables: Optional[str] = None
+    target_audience: Optional[str] = None
+    category: Optional[str] = None
+    location: str 
+    status: Optional[str] = "active"
+   
+class EventRead(BaseModel):
+    id: UUID 
+    user_id: UUID 
+    brand_id: UUID
+    title: str
+    description: Optional[str] = None
+    objectives: Optional[str] = None
+    budget: Optional[float] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+    deliverables: Optional[str] = None
+    target_audience: Optional[str] = None
+    category: Optional[str] = None
+    location: str 
+    status: str
+    created_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
+class EventUpdate(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    objectives: Optional[str] = None
+    budget: Optional[float] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    deliverables: Optional[str] = None
+    target_audience: Optional[str] = None
+    category: Optional[str] = None
+    location: Optional[str] = None
+    event_active: Optional[bool] = None
+
+class EventApplicationCreate(BaseModel):
+    event_id: UUID
+    influencer_id: UUID
+
+class EventApplicationRead(BaseModel):
+
+    id: UUID
+    event_id: UUID
+    influencer_id: UUID
+    status: str
+    applied_at: datetime
+
+    model_config = {
+        "from_attributes": True
+    }
+
+class EventApplicationStatusUpdate(BaseModel):
+    status: Optional[str] = None

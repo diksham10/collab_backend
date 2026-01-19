@@ -106,6 +106,18 @@ def create_access_token(user_id:str, user_role:str) -> str:
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
     return token
 
+def create_refresh_token(user_id: str) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(days=7)  # Refresh token valid for 7 days
+
+    payload = {
+        "sub": str(user_id),
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    }
+
+    token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+    return token
+
 def decode_access_token(token: str) -> Optional[int]:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -151,12 +163,28 @@ async def reset_password(email: str, new_password: str, db: AsyncSession) -> Opt
     user = result.scalars().first()
     if not user:
         raise ValueError("User with this email does not exist")
+    
     user.hashed_password = hash_password(new_password)
     user.updated_at = datetime.utcnow()
     db.add(user)
     await db.commit()
     await db.refresh(user)
     return user
+
+async def refresh_access_token(refresh_token: str, db: AsyncSession) -> Optional[str]:
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: Optional[str] = payload.get("sub")
+        if user_id is None:
+            return None
+        result = await db.execute(select(Users).where(Users.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            return None
+        new_access_token = create_access_token(user_id, user.role)
+        return new_access_token
+    except JWTError:
+        return None
 
 
 
