@@ -52,6 +52,7 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
 async def login(
     user_in: UserLogin,
     response: Response,
+    request: Request,
     db: AsyncSession = Depends(get_session)
 ):
     
@@ -61,23 +62,29 @@ async def login(
 
     access_token = create_access_token(user.id, user.role)
     refresh_token = create_refresh_token(user.id)
+    print("Setting cookies...", access_token, refresh_token)
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        max_age=15*60,
-        secure=False,
-        samesite="Lax"
+        max_age=15*60*60,
+        secure=True,
+        samesite="None"
     )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         max_age=7*24*3600,
-        secure=False,
-        samesite="Lax"
+        secure=True,
+        samesite="None"
     )
-    return {"access_token": access_token, "token_type": "bearer"} 
+    
+    return Token(access_token=access_token, token_type="bearer")
+    
+    print(f"Token set in cookies: {access_token}")
+    
 
 #get current user endpoint
 @router.get("/me", response_model=UserRead)
@@ -183,7 +190,7 @@ async def refresh_token_endpoint(response: Response, current_user: Users = Depen
         httponly=True,
         max_age=15*60,
         secure=True,
-        samesite="Lax"
+        samesite="None"
     )
     response.set_cookie(
         key="refresh_token",
@@ -191,7 +198,7 @@ async def refresh_token_endpoint(response: Response, current_user: Users = Depen
         httponly=True,
         max_age=7*24*3600,
         secure=True,
-        samesite="Lax"
+        samesite="None"
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -214,6 +221,22 @@ async def refresh(response: Response, request: Request, db: AsyncSession = Depen
         httponly=True,
         max_age=15*60,
         secure=True,
-        samesite="Lax"
+        samesite="None"
     )
     return {"access_token": new_access_token, "token_type": "bearer"}
+
+@router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        samesite="none",
+        secure=True   # True in production HTTPS
+    )
+    response.delete_cookie(
+        key="refresh_token",
+        path="/",
+        samesite="none",
+        secure=True
+    )
+    return {"message": "Logged out"}

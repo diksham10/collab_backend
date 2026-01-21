@@ -1,11 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
+from sqlalchemy import delete
 from fastapi import HTTPException, Depends
 from src.brand.schema import BrandCreate, BrandRead, BrandUpdate
 from src.auth.models import Users
 from src.brand.models import BrandProfile
 from datetime import datetime, timedelta, timezone
 from src.auth.dependencies import get_current_user
+from uuid import UUID
 
 
 
@@ -47,7 +49,7 @@ async def get_brands(current_user: Users=Depends(get_current_user), db: AsyncSes
     return brands   
 
 
-async def update_brand(current_user: Users, brand_id: str, brand_data: BrandUpdate, db: AsyncSession):
+async def update_brand(current_user: Users, brand_id: UUID, brand_data: BrandUpdate, db: AsyncSession):
     result = await db.execute(select(Users).where(Users.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
@@ -75,22 +77,20 @@ async def update_brand(current_user: Users, brand_id: str, brand_data: BrandUpda
         raise HTTPException(status_code=500, detail="Failed to update brand")
 
 
-async def delete_brand(current_user: Users, brand_id: str, db: AsyncSession):
+async def delete_brand(current_user: Users, brand_id: UUID, db: AsyncSession):
     result = await db.execute(select(Users).where(Users.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.role != "brand":
         raise HTTPException(status_code=403, detail="Only brand users can delete brands")
-    result1 = await db.execute(select(BrandProfile).where(BrandProfile.user_id == current_user.id, BrandProfile.id == brand_id))
-    brand = result1.scalar_one_or_none()
-    if not brand:
-        raise HTTPException(status_code=404, detail="Brand not found")
+    
     try:
-        await db.delete(brand)
+        stmt = delete(BrandProfile).where(BrandProfile.user_id == current_user.id, BrandProfile.id == brand_id)
+        await db.execute(stmt)
         await db.commit()
-        return True
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail="Failed to delete brand")
+        raise HTTPException(status_code=500, detail=f"Failed to delete brand: {str(e)}")
+    return {"message": "Brand deleted successfully"}
 

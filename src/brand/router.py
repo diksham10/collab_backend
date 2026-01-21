@@ -5,6 +5,7 @@ from src.brand.schema import BrandCreate, BrandRead, BrandUpdate
 from src.auth.models import Users
 from src.auth.dependencies import get_current_user
 from src.brand.dependencies import check_brand_limit
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,17 +18,21 @@ async def create_brandprofile( brand_in: BrandCreate, current_user: Users =Depen
     return new_brand
 db: AsyncSession = Depends(get_session)
 
+
 @router.get("/brandsbyuser", response_model= list[BrandRead])
 async def get_brand(current_user: Users = Depends(get_current_user), db: AsyncSession=Depends(get_session)):
     brands = await get_brands(current_user, db)
     return brands
 
+
 @router.put("/update_brandprofile/{brand_id}", response_model= BrandRead)
-async def update_brandprofile(brand_id: str, brand_in: BrandUpdate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+async def update_brandprofile(brand_id: UUID, brand_in: BrandUpdate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     updated_brand = await update_brand(current_user, brand_id, brand_in, db)
     return updated_brand
 
+
 @router.delete("/delete_brandprofile/{brand_id}")
-async def delete_brandprofile(brand_id: str, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    await delete_brand(current_user, brand_id, db)
-    return {"message": "Brand profile deleted successfully"}
+async def delete_brandprofile(brand_id: UUID, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    print("Deleting brand profile with ID:", brand_id)
+    payload = await delete_brand(current_user, brand_id, db)
+    return payload

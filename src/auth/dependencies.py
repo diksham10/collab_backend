@@ -1,5 +1,5 @@
 # function to be used in other models
-from fastapi import Depends, HTTPException, status, Cookie, Request
+from fastapi import Depends, HTTPException, status, Cookie, Request, WebSocket
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -51,3 +51,31 @@ def role_required(role: str):
         return current_user
     return dependency
 
+async def get_current_user_ws(websocket: WebSocket, db: AsyncSession) -> Users:
+    """
+    Extract current user from JWT cookie for WebSocket connection
+    """
+    token = websocket.cookies.get("access_token")
+    if not token:
+        await websocket.close(code=1008)
+        raise Exception("Not authenticated")
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: UUID = payload.get("sub")
+        if not user_id:
+            await websocket.close(code=1008)
+            raise Exception("Invalid token")
+    except ExpiredSignatureError:
+        await websocket.close(code=1008)
+        raise Exception("Token expired")
+    except JWTError as e:
+        await websocket.close(code=1008)
+        raise Exception(f"JWT error: {e}")
+
+    result = await db.execute(select(Users).where(Users.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        await websocket.close(code=1008)
+        raise Exception("User not found")
+    return user

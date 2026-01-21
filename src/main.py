@@ -14,7 +14,8 @@ app.middleware("http")(logging_middleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000",
+                   "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +32,7 @@ from src.test.router import router as test_router
 from src.brand.router import router as brand_router
 from src.influencer.router import router as influencer_router
 from src.event.router import router as event_router
+from src.chat.router import router as chat_router
 
 app.include_router(auth_router, tags=["user"])
 app.include_router(otp_router,tags=["otp"])
@@ -38,6 +40,7 @@ app.include_router(test_router, prefix="/test", tags=["test"])
 app.include_router(brand_router, prefix="/brand", tags=["brand"])
 app.include_router(influencer_router, prefix="/influencer", tags=["influencer"])
 app.include_router(event_router, prefix="/event", tags=["event"])
+app.include_router(chat_router, prefix="/chat", tags=["chat"])  
 
 
 from scalar_fastapi import get_scalar_api_reference

@@ -3,6 +3,7 @@ from datetime import datetime
 from sqlmodel import SQLModel, Field, Relationship
 from src.myenums import UserRole
 from uuid import UUID, uuid4
+from sqlalchemy.orm import Mapped
 
 if TYPE_CHECKING:
     from src.brand.models import BrandProfile
@@ -30,29 +31,29 @@ class Users(SQLModel, table=True):
 
     # Relationships
     
-    brand_profile: Optional["BrandProfile"] = Relationship(back_populates="user")
-    influencer_profile: Optional["InfluencerProfile"] = Relationship(back_populates="user")
+    brands: Mapped[List["BrandProfile"]] = Relationship(back_populates="user",sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    influencer_profile: Optional["InfluencerProfile"] = Relationship(back_populates="user",sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     # events: List["Event"] = Relationship(back_populates="brand")
     # applications: List["EventApplication"] = Relationship(back_populates="influencer")
-    sent_messages: List["Message"] = Relationship(
+    sent_messages: Mapped[List["Message"]] = Relationship(
         back_populates="sender",
-        sa_relationship_kwargs={"foreign_keys": "[Message.sender_id]"}
+        sa_relationship_kwargs={"foreign_keys": "[Message.sender_id]", "cascade": "all, delete-orphan"}
     )
-    received_messages: List["Message"] = Relationship(
+    received_messages: Mapped[List["Message"]] = Relationship(
         back_populates="receiver",
-        sa_relationship_kwargs={"foreign_keys": "[Message.receiver_id]"}
+        sa_relationship_kwargs={"foreign_keys": "[Message.receiver_id]", "cascade": "all, delete-orphan"}
     )
-    notifications: List["Notification"] = Relationship(back_populates="user")
-    ratings_given: List["Rating"] = Relationship(
+    notifications: Mapped[List["Notification"]] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    ratings_given: Mapped[List["Rating"]] = Relationship(
         back_populates="rater",
-        sa_relationship_kwargs={"foreign_keys": "[Rating.rater_id]"}
+        sa_relationship_kwargs={"foreign_keys": "[Rating.rater_id]", "cascade": "all, delete-orphan"}
     )
-    ratings_received: List["Rating"] = Relationship(
+    ratings_received: Mapped[List["Rating"]] = Relationship(
         back_populates="ratee",
-        sa_relationship_kwargs={"foreign_keys": "[Rating.ratee_id]"}
+        sa_relationship_kwargs={"foreign_keys": "[Rating.ratee_id]", "cascade": "all, delete-orphan"}
     )
-    admin_logs: List["AdminLog"] = Relationship(back_populates="admin")
-    otps: List["OtpModel"] = Relationship(back_populates="user")
+    admin_logs: Mapped[List["AdminLog"]] = Relationship(back_populates="admin", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    otps: Mapped[List["OtpModel"]] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
 
 from src.brand.models import BrandProfile
 from src.influencer.models import InfluencerProfile

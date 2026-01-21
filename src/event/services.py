@@ -22,10 +22,14 @@ async def get_event(event_id: str, db: AsyncSession) -> Event:
 async def get_all_events(db: AsyncSession) -> list[Event]:
     result = await db.execute(select(Event))
     events = result.scalars().all()
+
     return events
+
+
 async def get_events_by_brand(brand_id: str, db: AsyncSession) -> list[Event]:
     result = await db.execute(select(Event).where(Event.brand_id == brand_id))
     events = result.scalars().all()
+    
     return events
 
 
@@ -39,8 +43,6 @@ async def create_event(current_users: Users,current_brand_id: str, event_in:Even
         raise HTTPException(status_code=403, detail="Not authorized to create event for this brand.")
     
     #date handling
-
-
     start_dt: Optional[datetime] = None
     if event_in.start_date:
         try:
@@ -153,26 +155,26 @@ async def update_event(current_user: Users, event_id: str, event_in: EventUpdate
 
 
 # crud operations for EventApplication model
-async def apply_to_event(current_user: Users, event_id: str, application_in: EventApplicationCreate, db: AsyncSession) -> EventApplication:
+async def apply_to_event(current_user: Users, application_in: EventApplicationCreate, db: AsyncSession) -> EventApplication:
 
     result = await db.execute(select(InfluencerProfile).where(InfluencerProfile.user_id == current_user.id))
     current_influencer_profile = result.scalars().first()
     if not current_influencer_profile:
         raise HTTPException(status_code=400, detail="Influencer profile not found for the current user.")
-    result1 = await db.execute(select(Event).where(Event.id == event_id))
+    result1 = await db.execute(select(Event).where(Event.id == application_in.event_id))
     event = result1.scalars().first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found.")
     if event.status != "active":
         raise HTTPException(status_code=400, detail="Cannot apply to an inactive event.")
     # Check if the influencer has already applied to this event
-    result2 = await db.execute(select(EventApplication).where(EventApplication.event_id == event_id, EventApplication.influencer_id == current_influencer_profile.id))
+    result2 = await db.execute(select(EventApplication).where(EventApplication.event_id == application_in.event_id, EventApplication.influencer_id == current_influencer_profile.id))
     existing_application = result2.scalars().first()
     if existing_application:
         raise HTTPException(status_code=400, detail="You have already applied to this event.")
     new_application = EventApplication(
-        event_id= event_id,
-        influencer_id= current_influencer_profile.id,
+        event_id= application_in.event_id,
+        influencer_id= application_in.influencer_id,
         status= "pending"
     )
     try:
@@ -188,6 +190,22 @@ async def get_event_appplications(event_id: str, db: AsyncSession) -> list[Event
     result = await db.execute(select(EventApplication).where(EventApplication.event_id == event_id))
     applications = result.scalars().all()
     return applications
+
+async def update_application_status(application_id: str, new_status: str, db: AsyncSession) -> EventApplication:
+    result = await db.execute(select(EventApplication).where(EventApplication.id == application_id))
+    application = result.scalars().first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    
+    application.status = new_status
+    try:
+        db.add(application)
+        await db.commit()
+        await db.refresh(application)
+        return application
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

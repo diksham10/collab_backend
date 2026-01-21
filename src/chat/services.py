@@ -1,6 +1,8 @@
 from src.chat.models import Message
+from src.event.models import EventApplication
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+
 
 async def create_message(
     *,
@@ -41,5 +43,6 @@ async def get_undeliverd_messages(
         )
     )
     messages = result.scalars().all()
+    await db.commit()
     return messages
 
