@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from src.auth.models import Users
 from passlib.context import CryptContext
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status, Response
 from typing import Optional
 from jose import jwt,JWTError
 from datetime import datetime, timedelta, timezone
@@ -171,7 +171,7 @@ async def reset_password(email: str, new_password: str, db: AsyncSession) -> Opt
     await db.refresh(user)
     return user
 
-async def refresh_access_token(refresh_token: str, db: AsyncSession) -> Optional[str]:
+async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Response) -> Optional[str]:
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: Optional[str] = payload.get("sub")
@@ -182,6 +182,15 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession) -> Optional
         if not user:
             return None
         new_access_token = create_access_token(user_id, user.role)
+        new_refresh_token = create_refresh_token(user_id)
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            max_age=7*24*3600,
+            secure=True,
+            samesite="None"
+        )
         return new_access_token
     except JWTError:
         return None

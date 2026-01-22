@@ -34,16 +34,16 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
         value=auth_token,
         httponly=True,
         max_age=15*60,
-        secure=False,
-        samesite="Lax"
+        secure=True,
+        samesite="None"
     )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         max_age=7*24*3600,
-        secure=False,
-        samesite="Lax"
+        secure=True,
+        samesite="None"
     )
     return RegisterResponse(email=new_user.email, message="User registered successfully. Please verify your email.", auth_token=auth_token)
 
@@ -177,53 +177,6 @@ async def get_all_users( db: AsyncSession = Depends(get_session)):
     users = result.scalars().all()
     return users
 
-
-#refresh token endpoint
-@router.post("/refresh-token", response_model=Token)
-async def refresh_token_endpoint(response: Response, current_user: Users = Depends(get_current_user)):
-    refresh_token = create_refresh_token(current_user.id)
-    access_token = create_access_token(current_user.id, current_user.role)
-
-    response.set_cookie(
-        key="access_token",
-        value=access_token,
-        httponly=True,
-        max_age=15*60,
-        secure=True,
-        samesite="None"
-    )
-    response.set_cookie(
-        key="refresh_token",
-        value=refresh_token,
-        httponly=True,
-        max_age=7*24*3600,
-        secure=True,
-        samesite="None"
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
-@router.get("/refresh", response_model=Token)
-async def refresh(response: Response, request: Request, db: AsyncSession = Depends(get_session)):
-    try:
-        refresh_token = request.cookies.get("refresh_token")
-    except:
-        print("No cookies found")
-    if not refresh_token:
-        raise HTTPException(status_code=401, detail="Refresh token missing")
-    
-    new_access_token = await refresh_access_token(refresh_token,db)
-    if not new_access_token:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
-    response.set_cookie(
-        key="access_token",
-        value=new_access_token,
-        httponly=True,
-        max_age=15*60,
-        secure=True,
-        samesite="None"
-    )
-    return {"access_token": new_access_token, "token_type": "bearer"}
 
 @router.post("/logout")
 async def logout(response: Response):

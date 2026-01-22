@@ -69,3 +69,11 @@ class EventApplicationRead(BaseModel):
 
 class EventApplicationStatusUpdate(BaseModel):
     status: Optional[str] = None
+
+class UserPreference(BaseModel):
+    location: Optional[str] = None
+    categories: Optional[list[str]] = None
+    budget_range: Optional[tuple[float, float]] = None
+    target_audience: Optional[str] = None
+    start_date: Optional[date] = None
+

@@ -5,35 +5,63 @@ from src.auth.models import Users
 from src.brand.models import BrandProfile
 from src.influencer.models import InfluencerProfile
 from src.event.models import Event, EventApplication
-from src.event.schema import EventCreate, EventUpdate, EventApplicationCreate
+from src.event.schema import EventCreate, EventUpdate, EventApplicationCreate, UserPreference
 from uuid import UUID, uuid4
 from sqlmodel import select
 from typing import Optional
-
+from uuid import UUID
 
 # crud operations for Event model
 
-async def get_event(event_id: str, db: AsyncSession) -> Event:
+async def get_event(event_id: UUID, db: AsyncSession) -> Event:
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalars().first()
     if not event:
         raise HTTPException(status_code=404, detail="Event not found.")
     return event
-async def get_all_events(db: AsyncSession) -> list[Event]:
-    result = await db.execute(select(Event))
-    events = result.scalars().all()
 
+async def get_all_events(user_pref: UserPreference, db: AsyncSession) -> list[Event]:
+    result = await db.execute(select(Event).where(Event.status == "active"))
+    events = result.scalars().all()
+    def score_event(event: Event ) -> float:
+        
+        score = 0.0
+
+        # score basis
+        if event.budget:
+            score += min(event.budget /10000.0, 10.0)
+        if user_pref.location and event.location:
+            if user_pref.location.lower() == event.location.lower():
+                score += 5.0
+        if user_pref.categories and event.category: 
+            if event.category.lower() in [cat.lower() for cat in user_pref.categories]:
+                score += 3.0
+        if user_pref.target_audience and event.target_audience:
+            if user_pref.target_audience.lower() in event.target_audience.lower():
+                score += 2.0
+        if user_pref.start_date and event.start_date:
+            if event.start_date >= datetime.combine(user_pref.start_date, time.min):
+                score += 1.0
+        if user_pref.budget_range:
+            min_budget = user_pref.budget_range[0]
+            max_budget = user_pref.budget_range[1]
+            if min_budget is not None and max_budget is not None and event.budget:
+                if min_budget <= event.budget <= max_budget:
+                    score += 5.0
+        return score
+    
+    events.sort(key=lambda e: score_event(e), reverse=True)
     return events
 
 
-async def get_events_by_brand(brand_id: str, db: AsyncSession) -> list[Event]:
+async def get_events_by_brand(brand_id: UUID, db: AsyncSession) -> list[Event]:
     result = await db.execute(select(Event).where(Event.brand_id == brand_id))
     events = result.scalars().all()
     
     return events
 
 
-async def create_event(current_users: Users,current_brand_id: str, event_in:EventCreate, db:  AsyncSession) -> Event:
+async def create_event(current_users: Users,current_brand_id: UUID, event_in:EventCreate, db:  AsyncSession) -> Event:
     # Ensure the current user has a brand profile
     result = await db.execute(select(BrandProfile).where(BrandProfile.user_id == current_users.id,BrandProfile.id == current_brand_id))
     brand_profile = result.scalars().first()
@@ -88,7 +116,7 @@ async def create_event(current_users: Users,current_brand_id: str, event_in:Even
         raise HTTPException(status_code=500, detail=str(e))
     
 
-async def delete_event(current_user: Users, event_id: str, db: AsyncSession):
+async def delete_event(current_user: Users, event_id: UUID, db: AsyncSession):
 
     result1 = await db.execute(select(Event).where(Event.id == event_id))
     event = result1.scalars().first()
@@ -105,7 +133,7 @@ async def delete_event(current_user: Users, event_id: str, db: AsyncSession):
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     
-async def update_event(current_user: Users, event_id: str, event_in: EventUpdate, db: AsyncSession) -> Event:
+async def update_event(current_user: Users, event_id: UUID, event_in: EventUpdate, db: AsyncSession) -> Event:
     result = await db.execute(select(Event).where(Event.id == event_id))
     event = result.scalars().first()
     if not event:
@@ -186,12 +214,12 @@ async def apply_to_event(current_user: Users, application_in: EventApplicationCr
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-async def get_event_appplications(event_id: str, db: AsyncSession) -> list[EventApplication]:
+async def get_event_appplications(event_id: UUID, db: AsyncSession) -> list[EventApplication]:
     result = await db.execute(select(EventApplication).where(EventApplication.event_id == event_id))
     applications = result.scalars().all()
     return applications
 
-async def update_application_status(application_id: str, new_status: str, db: AsyncSession) -> EventApplication:
+async def update_application_status(application_id: UUID, new_status: str, db: AsyncSession) -> EventApplication:
     result = await db.execute(select(EventApplication).where(EventApplication.id == application_id))
     application = result.scalars().first()
     if not application:
