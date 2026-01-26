@@ -12,6 +12,8 @@ from src.database import get_session
 from src.auth.models import Users
 from src.auth.dependencies import get_current_user
 from src.otp.service import create_send_otp
+from src.refresh_token.model import RefreshTokenModel
+from src.refresh_token.service import save_refresh_token, hash_token
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -45,6 +47,9 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
         secure=True,
         samesite="None"
     )
+    
+    await save_refresh_token(new_user.id, await hash_token(refresh_token), db)
+    
     return RegisterResponse(email=new_user.email, message="User registered successfully. Please verify your email.", auth_token=auth_token)
 
 
@@ -81,10 +86,10 @@ async def login(
         samesite="None"
     )
     
+    await save_refresh_token(user.id, await hash_token(refresh_token), db)
+    
     return Token(access_token=access_token, token_type="bearer")
-    
-    print(f"Token set in cookies: {access_token}")
-    
+        
 
 #get current user endpoint
 @router.get("/me", response_model=UserRead)
@@ -168,7 +173,16 @@ async def reset_password_endpoint(reset_data: ResetPassword, db: AsyncSession = 
 #     )
 #     return {"access_token": auth_token, "token_type": "bearer"}
 
-
+#refresh token endpoint
+@router.post("/refresh-token", response_model=Token)
+async def refresh_token_endpoint(request: Request, response: Response, db: AsyncSession = Depends(get_session)):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token missing")
+    new_access_token = await refresh_access_token(refresh_token, db, response)
+    if not new_access_token:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")        
+   
 #get all users endpoint
 @router.get("/all_users", response_model=list[UserRead])
 async def get_all_users( db: AsyncSession = Depends(get_session)):

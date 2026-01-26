@@ -49,8 +49,10 @@ async def get_brands(current_user: Users=Depends(get_current_user), db: AsyncSes
     return brands   
 
 async def get_brand_by_id(brand_id: UUID, db: AsyncSession):
+    print("Fetching brand with ID:", brand_id)
     result = await db.execute(select(BrandProfile).where(BrandProfile.id == brand_id))
     brand = result.scalar_one_or_none()
+    print("Fetched brand:", brand)
     if not brand:
         raise HTTPException(status_code=404, detail="Brand not found")
     return brand

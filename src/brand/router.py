@@ -20,6 +20,7 @@ db: AsyncSession = Depends(get_session)
 
 @router.get("/brandbyid/{brand_id}", response_model= BrandRead)
 async def get_brand_by_id_endpoint( brand_id: UUID, db: AsyncSession=Depends(get_session)):
+    print("Endpoint called for brand ID:", brand_id)
     brand = await get_brand_by_id(brand_id, db)
     return brand
 

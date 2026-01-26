@@ -4,6 +4,7 @@ from sqlmodel import SQLModel, Field, Relationship, Column, ForeignKey
 from uuid import UUID, uuid4
 from src.myenums import NotificationType
 from sqlalchemy.orm import Mapped
+from sqlalchemy.dialects.postgresql import JSONB
 if TYPE_CHECKING:
     from auth.models import Users  # type hint only
 
@@ -15,6 +16,7 @@ class Notification(SQLModel, table=True):
     type: NotificationType
     title: Optional[str] = None
     message: str
+    data: Optional[dict] = Field(sa_column=Column(JSONB), default=None)
     is_read: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

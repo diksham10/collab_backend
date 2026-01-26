@@ -5,7 +5,6 @@ from src.myenums import SocialPlatform
 
 
 class InfluencerCreate(BaseModel):
-    id:UUID
     name: str
     niche: Optional[str] = None
     audience_size: Optional[int] = None

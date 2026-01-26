@@ -12,6 +12,9 @@ from datetime import datetime, timedelta, timezone
 from psycopg2 import IntegrityError
 from dotenv import load_dotenv
 import os
+from uuid import UUID
+from src.refresh_token.model import RefreshTokenModel
+from src.refresh_token.service import hash_token, delete_refresh_token, save_refresh_token
 
 load_dotenv()
 
@@ -116,16 +119,7 @@ def create_refresh_token(user_id: str) -> str:
     }
 
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
-    return token
-
-def decode_access_token(token: str) -> Optional[int]:
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: Optional[str] = payload.get("sub")
-        return int(user_id) if user_id else None
-    except JWTError:
-        return None
-    
+    return token    
 
 
 async def update_user(user: Users, user_in: UserUpdate, db: AsyncSession) -> Users:
@@ -175,13 +169,27 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Re
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: Optional[str] = payload.get("sub")
-        if user_id is None:
+        hashed_token = await hash_token(refresh_token)
+        
+        result = await db.execute(
+            select(RefreshTokenModel).where(
+                RefreshTokenModel.hashed_token == hashed_token
+            )
+        )
+        token_entry = result.scalars().first()
+        if not token_entry:
             return None
+        if token_entry.expires_at < datetime.utcnow():
+            await delete_refresh_token(hashed_token, db)
+            return None
+        
         result = await db.execute(select(Users).where(Users.id == user_id))
         user = result.scalar_one_or_none()
         if not user:
             return None
         new_access_token = create_access_token(user_id, user.role)
+        # validate old token and rotate
+        await delete_refresh_token(hashed_token, db)
         new_refresh_token = create_refresh_token(user_id)
         response.set_cookie(
             key="refresh_token",
@@ -191,6 +199,7 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Re
             secure=True,
             samesite="None"
         )
+        await save_refresh_token(UUID(user_id), await hash_token(new_refresh_token), db)
         return new_access_token
     except JWTError:
         return None

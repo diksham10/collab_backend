@@ -38,6 +38,8 @@ async def get_current_user(request: Request,response: Response, db: AsyncSession
             raise HTTPException(status_code=401, detail="Token expired and no refresh token provided")
         try:
             new_token =await refresh_access_token(refresh_token, db, response)
+            if not new_token:
+                raise HTTPException(status_code=401, detail="Invalid refresh token")
             response.set_cookie(
                 key="access_token",
                 value=new_token,

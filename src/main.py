@@ -7,7 +7,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 from src.middleware.logging import logging_middleware
+from src.redis import redis
+
 app=FastAPI()
+
+@app.on_event("startup")
+async def startup_event():
+    try:
+        await redis.ping()
+        print("Redis connected")
+    except Exception as e:
+        print(" Redis connection failed:", e)
+        raise e
+@app.on_event("shutdown")
+async def shutdown_event():
+    await redis.close()
+    print("Redis connection closed")
+
 
 app.middleware("http")(logging_middleware)
 
@@ -88,3 +104,4 @@ app.openapi = custom_openapi
 async def read_root():
     return {"message": "hi baby"}
 # SQLModel.metadata.create_all(engine) #because async engine, we cant use this method to create tables
+
