@@ -11,13 +11,19 @@ async def create_influencer(current_user: Users, influencer: InfluencerCreate, d
 
     result = await  db.execute(select(Users).where(Users.id == current_user.id))
     user = result.scalar_one_or_none()
+    result1 = await db.execute(select(InfluencerProfile).where(InfluencerProfile.user_id == current_user.id))
+    existing_influencer = result1.scalar_one_or_none()
+    if existing_influencer:
+        raise HTTPException(status_code=400, detail="Influencer profile already exists for this user.")
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.role != "influencer":
         raise HTTPException(status_code=403, detail="Only influencer users can create influencer profiles")
+    print("Creating influencer profile for user:", user.id)
+
     new_influencer = InfluencerProfile(
         user_id = current_user.id,
-        name = influencer.name,
+        name = user.username if not influencer.name else influencer.name,
         niche = influencer.niche,
         audience_size = influencer.audience_size,
         engagement_rate = influencer.engagement_rate,
@@ -26,14 +32,16 @@ async def create_influencer(current_user: Users, influencer: InfluencerCreate, d
         created_at=datetime.utcnow().isoformat(),
         updated_at=datetime.utcnow().isoformat()
     )
+    print("New influencer profile data:", new_influencer)
     try:
         db.add(new_influencer)
+        print("Added new influencer profile to the session")
         await db.commit()
         await db.refresh(new_influencer)
-        return new_influencer
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail="Failed to create influencer profile")
+    return new_influencer
 
 async def get_influencer(current_user: Users, db: AsyncSession) -> InfluencerRead:
 

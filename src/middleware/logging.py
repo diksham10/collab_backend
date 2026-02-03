@@ -30,7 +30,7 @@ async def logging_middleware(request: Request, call_next):
          # Extract last traceback frame (where the error actually occurred)
         tb = traceback.extract_tb(e.__traceback__)
         if tb:
-            filename, lineno, func_name, _ = tb[-1]  # last frame
+            filename, lineno, func_name, _ = tb[-1]  # all frames
         else:
             filename, lineno = "unknown", 0
 

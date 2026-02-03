@@ -19,6 +19,11 @@ async def get_influencerprofile(current_user: Users = Depends(get_current_user),
     influencer = await get_influencer(current_user, db)
     return influencer
 
+@router.get("/get_influencer_by_id/{influencer_id}", response_model= InfluencerRead)
+async def get_influencer_by_id(influencer_id: str, db: AsyncSession=Depends(get_session)):
+    influencer = await get_influencer_by_id(None, db, influencer_id)
+    return influencer
+
 @router.put("/update_influencerprofile/{influencer_id}", response_model= InfluencerRead)
 async def update_influencerprofile(influencer_id: str, influencer_in: InfluencerUpdate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     updated_influencer = await update_influencer(current_user, influencer_id, influencer_in, db)

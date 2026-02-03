@@ -166,6 +166,8 @@ async def reset_password(email: str, new_password: str, db: AsyncSession) -> Opt
     return user
 
 async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Response) -> Optional[str]:
+    import os
+    IS_PRODUCTION = os.getenv("ENV","development") == "production"
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: Optional[str] = payload.get("sub")
@@ -196,8 +198,8 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Re
             value=new_refresh_token,
             httponly=True,
             max_age=7*24*3600,
-            secure=True,
-            samesite="None"
+            secure=IS_PRODUCTION,
+            samesite="None" if IS_PRODUCTION else "Lax"
         )
         await save_refresh_token(UUID(user_id), await hash_token(new_refresh_token), db)
         return new_access_token

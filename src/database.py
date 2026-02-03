@@ -1,7 +1,8 @@
 from typing import AsyncGenerator
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+import os
 
-DATABASE_URL = "postgresql+asyncpg://myuser:mypassword@localhost:5432/mydb"
+DATABASE_URL = os.environ["DATABASE_URL"]
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 

@@ -17,6 +17,10 @@ from src.refresh_token.service import save_refresh_token, hash_token
 
 router = APIRouter(prefix="/user", tags=["user"])
 
+# Determine if we are in production environment
+import os
+IS_PRODUCTION = os.getenv("ENV","development") == "production"
+
 
 #reegister endpoint
 @router.post("/register", response_model=RegisterResponse)
@@ -36,16 +40,16 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
         value=auth_token,
         httponly=True,
         max_age=15*60,
-        secure=True,
-        samesite="None"
+        secure=IS_PRODUCTION,
+        samesite="None" if IS_PRODUCTION else "Lax"
     )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         max_age=7*24*3600,
-        secure=True,
-        samesite="None"
+        secure=IS_PRODUCTION,
+        samesite="None" if IS_PRODUCTION else "Lax"
     )
     
     await save_refresh_token(new_user.id, await hash_token(refresh_token), db)
@@ -73,21 +77,21 @@ async def login(
         key="access_token",
         value=access_token,
         httponly=True,
-        max_age=15*60*60,
-        secure=True,
-        samesite="None"
+        max_age=15*60,
+        secure=IS_PRODUCTION,
+        samesite="None" if IS_PRODUCTION else "Lax"
     )
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
         max_age=7*24*3600,
-        secure=True,
-        samesite="None"
+        secure=IS_PRODUCTION,
+        samesite="None" if IS_PRODUCTION else "Lax"
     )
     
     await save_refresh_token(user.id, await hash_token(refresh_token), db)
-    
+
     return Token(access_token=access_token, token_type="bearer")
         
 
@@ -197,13 +201,13 @@ async def logout(response: Response):
     response.delete_cookie(
         key="access_token",
         path="/",
-        samesite="none",
-        secure=True   # True in production HTTPS
+        samesite="none" if IS_PRODUCTION else "Lax",
+        secure=IS_PRODUCTION   # True in production HTTPS
     )
     response.delete_cookie(
         key="refresh_token",
         path="/",
-        samesite="none",
-        secure=True
+        samesite="none" if IS_PRODUCTION else "Lax",
+        secure=IS_PRODUCTION
     )
     return {"message": "Logged out"}

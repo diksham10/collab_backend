@@ -29,9 +29,25 @@ fileConfig(config.config_file_name)
 
 # SQLModel metadata
 target_metadata = SQLModel.metadata
+import os  # Make sure this is at the top
 
-# Read the database URL from alembic.ini
-DATABASE_URL: Optional[str] = config.get_main_option("sqlalchemy.url")
+# ... existing imports ...
+
+config = context.config
+fileConfig(config.config_file_name)
+target_metadata = SQLModel.metadata
+
+# --- REPLACE YOUR DATABASE_URL LINE WITH THIS ---
+# 1. Try to get URL from Environment Variable (Docker)
+# 2. Fallback to the URL in alembic.ini if environment variable is missing
+DATABASE_URL = os.getenv("DATABASE_URL") or \
+    "postgresql+asyncpg://test:test@postgres:5432/test"
+
+if not DATABASE_URL:
+    raise RuntimeError("INVALID DATABASE_URL")
+
+
+
 
 
 def run_migrations_offline():

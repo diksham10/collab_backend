@@ -9,12 +9,12 @@ class EventCreate(BaseModel):
     description: Optional[str] = None
     objectives: Optional[str] = None
     budget: Optional[float] = None
-    start_date: Optional[str]
-    end_date: Optional[str]
+    start_date: Optional[str] = None
+    end_date: Optional[str] =None
     deliverables: Optional[str] = None
     target_audience: Optional[str] = None
     category: Optional[str] = None
-    location: str 
+    location: Optional[str] = None
     status: Optional[str] = "active"
    
 class EventRead(BaseModel):

@@ -31,8 +31,6 @@ async def get_current_user(request: Request,response: Response, db: AsyncSession
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: UUID = UUID(payload.get("sub"))
-        if not user_id:
-            raise HTTPException(status_code=401, detail="Invalid token")
     except:   
         if not refresh_token:
             raise HTTPException(status_code=401, detail="Token expired and no refresh token provided")

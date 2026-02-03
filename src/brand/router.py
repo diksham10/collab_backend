@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from src.database import get_session
-from src.brand.service import create_brand, get_brands, delete_brand, update_brand, get_brand_by_id
+from src.brand.service import create_brand, get_brands, delete_brand, update_brand, get_brand_by_id, get_brand_by_name
 from src.brand.schema import BrandCreate, BrandRead, BrandUpdate
 from src.auth.models import Users
 from src.auth.dependencies import get_current_user
@@ -22,6 +22,12 @@ db: AsyncSession = Depends(get_session)
 async def get_brand_by_id_endpoint( brand_id: UUID, db: AsyncSession=Depends(get_session)):
     print("Endpoint called for brand ID:", brand_id)
     brand = await get_brand_by_id(brand_id, db)
+    return brand
+
+@router.get("/brandbyname/{brand_name}", response_model= BrandRead)
+async def get_brand_by_name_endpoint( brand_name: str, db: AsyncSession=Depends(get_session)):
+    print("Endpoint called for brand name:", brand_name)
+    brand = await get_brand_by_name(brand_name, db)
     return brand
 
 @router.get("/brandsbyuser", response_model= list[BrandRead])

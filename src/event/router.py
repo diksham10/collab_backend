@@ -6,7 +6,7 @@ from src.auth.models import Users
 from src.influencer.models import InfluencerProfile
 from src.event.models import Event
 from src.event.schema import EventApplicationCreate, EventApplicationRead, EventApplicationStatusUpdate, EventCreate, EventRead, EventUpdate, UserPreference
-from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status
+from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status, all_events
 from src.database import get_session
 from src.notification.services import create_notification
 from src.myenums import NotificationType
@@ -14,8 +14,8 @@ from uuid import UUID
 
 router = APIRouter()
 
-@router.post("/create_event{current_brand_id}", response_model=EventRead)
-async def create_event_endpoint(event_in: EventCreate, current_brand_id: str, current_users: Users = Depends(get_current_user),db: AsyncSession = Depends(get_session)):  
+@router.post("/create_event/{current_brand_id}", response_model=EventRead)
+async def create_event_endpoint(event_in: EventCreate, current_brand_id: UUID, current_users: Users = Depends(get_current_user),db: AsyncSession = Depends(get_session)):  
     new_event = await create_event(current_users,current_brand_id, event_in, db)
     return new_event
 
@@ -29,15 +29,21 @@ async def get_events_by_brand_endpoint( brand_id: UUID, db: AsyncSession = Depen
 async def delete_event_endpoint( event_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     await delete_event( current_user, event_id, db)
 
-@router.post("/eventsusinghybrid", response_model= list[EventRead])
-async def get_all_events_endpoint(user_pref: UserPreference, db: AsyncSession = Depends(get_session)):
+@router.post("/events_using_hybrid", response_model= list[EventRead])
+async def get_all_events_using_algorithms_endpoint(user_pref: UserPreference, db: AsyncSession = Depends(get_session)):
     events = await get_all_events(user_pref=user_pref, db=db)
+    return events
+
+@router.get("/all_events", response_model= list[EventRead])
+async def get_all_events_endpoint(db: AsyncSession = Depends(get_session)):
+    events = await all_events(db=db)
     return events
 
 @router.get("/eventbyid/{event_id}", response_model= EventRead)
 async def get_event_endpoint(event_id: UUID, db: AsyncSession = Depends(get_session)):
     event = await get_event(event_id, db)
     return event
+
 
 @router.patch("/update_event/{event_id}", response_model= EventRead)
 async def update_event_endpoint(event_id: UUID, event_in: EventUpdate, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):

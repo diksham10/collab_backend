@@ -7,7 +7,7 @@ from redis.asyncio import Redis
 load_dotenv()
 redis_host = getenv("REDIS_HOST")
 redis_port = getenv("REDIS_PORT")
-
+print(redis_host, redis_port)
 redis = Redis(
     host=redis_host,
     port=int(redis_port),

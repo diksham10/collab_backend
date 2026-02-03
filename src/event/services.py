@@ -20,6 +20,11 @@ async def get_event(event_id: UUID, db: AsyncSession) -> Event:
         raise HTTPException(status_code=404, detail="Event not found.")
     return event
 
+async def all_events(db: AsyncSession) -> list[Event]:
+    result = await db.execute(select(Event))
+    events = result.scalars().all()
+    return events
+
 async def get_all_events(user_pref: UserPreference, db: AsyncSession) -> list[Event]:
     result = await db.execute(select(Event).where(Event.status == "active"))
     events = result.scalars().all()
@@ -67,7 +72,7 @@ async def create_event(current_users: Users,current_brand_id: UUID, event_in:Eve
     brand_profile = result.scalars().first()
     if not brand_profile:
         raise HTTPException(status_code=400, detail="Brand not found for the current user.")
-    if str(brand_profile.id) != current_brand_id:
+    if brand_profile.id != current_brand_id:
         raise HTTPException(status_code=403, detail="Not authorized to create event for this brand.")
     
     #date handling
@@ -150,18 +155,18 @@ async def update_event(current_user: Users, event_id: UUID, event_in: EventUpdat
         event.objectives = event_in.objectives
     if event_in.budget is not None:
         event.budget = event_in.budget
-    if event_in.start_date is not None:
-        try:
-            start_date_obj = datetime.strptime(event_in.start_date, "%Y-%m-%d").date()
-            event.start_date = datetime.combine(start_date_obj, time.min)
-        except ValueError:
-            raise ValueError("start_date must be in YYYY-MM-DD format")
-    if event_in.end_date is not None:
-        try:
-            end_date_obj = datetime.strptime(event_in.end_date, "%Y-%m-%d").date()
-            event.end_date = datetime.combine(end_date_obj, time.max)
-        except ValueError:
-            raise ValueError("end_date must be in YYYY-MM-DD format")
+    # if event_in.start_date is not None:
+    #     try:
+    #         start_date_obj = datetime.strptime(event_in.start_date, "%Y-%m-%d").date()
+    #         event.start_date = datetime.combine(start_date_obj, time.min)
+    #     except ValueError:
+    #         raise ValueError("start_date must be in YYYY-MM-DD format")
+    # if event_in.end_date is not None:
+    #     try:
+    #         end_date_obj = datetime.strptime(event_in.end_date, "%Y-%m-%d").date()
+    #         event.end_date = datetime.combine(end_date_obj, time.max)
+    #     except ValueError:
+    #         raise ValueError("end_date must be in YYYY-MM-DD format")
     if event_in.deliverables is not None:
         event.deliverables = event_in.deliverables
     if event_in.target_audience is not None:
