@@ -23,6 +23,7 @@ async def get_current_user(request: Request,response: Response, db: AsyncSession
     """
     Extract current logged-in user from JWT token.
     """
+    print("fuck you")
     token = request.cookies.get("access_token")
     print(f"Retrieved token from cookies: {token}")
     refresh_token = request.cookies.get("refresh_token")
@@ -31,13 +32,15 @@ async def get_current_user(request: Request,response: Response, db: AsyncSession
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: UUID = UUID(payload.get("sub"))
+        
     except:   
         if not refresh_token:
             raise HTTPException(status_code=401, detail="Token expired and no refresh token provided")
         try:
             new_token =await refresh_access_token(refresh_token, db, response)
+            print(f"New token after refresh: {new_token}")
             if not new_token:
-                raise HTTPException(status_code=401, detail="Invalid refresh token")
+                raise HTTPException(status_code=401, detail="Invalid refresh token and no new token created")
             response.set_cookie(
                 key="access_token",
                 value=new_token,

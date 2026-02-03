@@ -168,30 +168,42 @@ async def reset_password(email: str, new_password: str, db: AsyncSession) -> Opt
 async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Response) -> Optional[str]:
     import os
     IS_PRODUCTION = os.getenv("ENV","development") == "production"
+    print("Refreshing access token...")
+    hashed_token = await hash_token(refresh_token)
+    print(f"Hashed refresh token: {hashed_token}")
     try:
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: Optional[str] = payload.get("sub")
-        hashed_token = await hash_token(refresh_token)
-        
+        user_id: Optional[str] = payload.get("sub")        
+        print(f"Decoded user_id from refresh token: {user_id}")
+        if not user_id:
+            print("No user_id found in token payload")
+            return None
+
+
         result = await db.execute(
             select(RefreshTokenModel).where(
-                RefreshTokenModel.hashed_token == hashed_token
+                RefreshTokenModel.user_id == user_id,
             )
         )
+
         token_entry = result.scalars().first()
+        print(f"Token entry from DB: {token_entry}")
         if not token_entry:
             return None
         if token_entry.expires_at < datetime.utcnow():
             await delete_refresh_token(hashed_token, db)
             return None
+
+        
         
         result = await db.execute(select(Users).where(Users.id == user_id))
         user = result.scalar_one_or_none()
         if not user:
+            print("User not found for the given user_id")
             return None
         new_access_token = create_access_token(user_id, user.role)
         # validate old token and rotate
-        await delete_refresh_token(hashed_token, db)
+        await delete_refresh_token(token_entry.user_id, db)
         new_refresh_token = create_refresh_token(user_id)
         response.set_cookie(
             key="refresh_token",
@@ -199,8 +211,11 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Re
             httponly=True,
             max_age=7*24*3600,
             secure=IS_PRODUCTION,
-            samesite="None" if IS_PRODUCTION else "Lax"
+            samesite="None" if IS_PRODUCTION else "Lax",
+            path="/"
         )
+        print("the new_access_token", new_access_token)
+        print("the new_refresh_token", new_refresh_token)
         await save_refresh_token(UUID(user_id), await hash_token(new_refresh_token), db)
         return new_access_token
     except JWTError:

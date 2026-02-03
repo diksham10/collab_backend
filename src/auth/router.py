@@ -13,7 +13,7 @@ from src.auth.models import Users
 from src.auth.dependencies import get_current_user
 from src.otp.service import create_send_otp
 from src.refresh_token.model import RefreshTokenModel
-from src.refresh_token.service import save_refresh_token, hash_token
+from src.refresh_token.service import save_refresh_token, hash_token, delete_refresh_token
 
 router = APIRouter(prefix="/user", tags=["user"])
 
@@ -41,7 +41,8 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
         httponly=True,
         max_age=15*60,
         secure=IS_PRODUCTION,
-        samesite="None" if IS_PRODUCTION else "Lax"
+        samesite="None" if IS_PRODUCTION else "Lax",
+        path="/"
     )
     response.set_cookie(
         key="refresh_token",
@@ -49,10 +50,15 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
         httponly=True,
         max_age=7*24*3600,
         secure=IS_PRODUCTION,
-        samesite="None" if IS_PRODUCTION else "Lax"
+        samesite="None" if IS_PRODUCTION else "Lax",
+        path="/"
     )
     
     await save_refresh_token(new_user.id, await hash_token(refresh_token), db)
+
+    result =await db.execute(select(RefreshTokenModel).where(RefreshTokenModel.user_id == new_user.id))
+    tokens = result.scalars().all()
+    print("Saved refresh tokens for user:", tokens)
     
     return RegisterResponse(email=new_user.email, message="User registered successfully. Please verify your email.", auth_token=auth_token)
 
@@ -79,7 +85,8 @@ async def login(
         httponly=True,
         max_age=15*60,
         secure=IS_PRODUCTION,
-        samesite="None" if IS_PRODUCTION else "Lax"
+        samesite="None" if IS_PRODUCTION else "Lax",
+        path="/"
     )
     response.set_cookie(
         key="refresh_token",
@@ -87,10 +94,12 @@ async def login(
         httponly=True,
         max_age=7*24*3600,
         secure=IS_PRODUCTION,
-        samesite="None" if IS_PRODUCTION else "Lax"
+        samesite="None" if IS_PRODUCTION else "Lax",
+        path="/"
     )
     
     await save_refresh_token(user.id, await hash_token(refresh_token), db)
+
 
     return Token(access_token=access_token, token_type="bearer")
         
@@ -197,17 +206,23 @@ async def get_all_users( db: AsyncSession = Depends(get_session)):
 
 
 @router.post("/logout")
-async def logout(response: Response):
+async def logout(response: Response, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    print("Logging out user...")
     response.delete_cookie(
         key="access_token",
-        path="/",
         samesite="none" if IS_PRODUCTION else "Lax",
-        secure=IS_PRODUCTION   # True in production HTTPS
+        secure=IS_PRODUCTION,
+        path ="/"
     )
     response.delete_cookie(
         key="refresh_token",
         path="/",
         samesite="none" if IS_PRODUCTION else "Lax",
-        secure=IS_PRODUCTION
+        secure=IS_PRODUCTION,
     )
+    result = await db.execute(select(RefreshTokenModel).where(RefreshTokenModel.user_id == current_user.id))
+    token_entry = result.scalars().first()
+    if token_entry:
+        await delete_refresh_token(token_entry.user_id, db)
+    print("User logged out, cookies deleted.")
     return {"message": "Logged out"}

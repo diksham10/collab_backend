@@ -30,9 +30,9 @@ async def save_refresh_token(user_id:UUID, hashed_token:str, db: AsyncSession):
     await db.commit()
     await db.refresh(refresh_token_model)
 
-async def delete_refresh_token(hashed_token:str, db: AsyncSession):
+async def delete_refresh_token(token_id: UUID, db: AsyncSession):
     result = await db.execute(
-        select(RefreshTokenModel).where(RefreshTokenModel.hashed_token == hashed_token)
+        select(RefreshTokenModel).where(RefreshTokenModel.user_id == token_id)
     )
     token_entry = result.scalars().first()
     if token_entry:
