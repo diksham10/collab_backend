@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from ratings.models import Rating
     from admin_logs.models import AdminLog
     from otp.models import OtpModel
+    from src.admin.models import Admin
     
 
 class Users(SQLModel, table=True):
@@ -33,6 +34,7 @@ class Users(SQLModel, table=True):
     
     brands: Mapped[List["BrandProfile"]] = Relationship(back_populates="user",sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     influencer_profile: Optional["InfluencerProfile"] = Relationship(back_populates="user",sa_relationship_kwargs={"cascade": "all, delete-orphan"})
+    admin: Optional["Admin"] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     # events: List["Event"] = Relationship(back_populates="brand")
     # applications: List["EventApplication"] = Relationship(back_populates="influencer")
     sent_messages: Mapped[List["Message"]] = Relationship(
@@ -63,5 +65,6 @@ from src.notification.models import Notification
 from src.ratings.models import Rating
 from src.admin_logs.models import AdminLog
 from src.otp.models import OtpModel
+from src.admin.models import Admin
 
 Users.update_forward_refs()

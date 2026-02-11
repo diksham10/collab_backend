@@ -205,7 +205,7 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Re
         if not token_entry:
             return None
         if token_entry.expires_at < datetime.utcnow():
-            await delete_refresh_token(hashed_token, db)
+            await delete_refresh_token(token_entry.id, db)
             return None
 
         

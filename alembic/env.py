@@ -19,6 +19,7 @@ from src.ratings.models import Rating
 from src.admin_logs.models import AdminLog
 from src.otp.models import OtpModel
 from src.refresh_token.model import RefreshTokenModel
+from src.admin.models import Admin
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

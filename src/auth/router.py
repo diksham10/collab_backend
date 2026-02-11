@@ -85,7 +85,7 @@ async def login(
         key="access_token",
         value=access_token,
         httponly=True,
-        max_age=15*60,
+        max_age=1*60,
         domain=".dixam.me",
         secure=IS_PRODUCTION,
         samesite="None" if IS_PRODUCTION else "Lax",
@@ -226,9 +226,6 @@ async def logout(response: Response, current_user: Users = Depends(get_current_u
         samesite="none" if IS_PRODUCTION else "Lax",
         secure=IS_PRODUCTION,
     )
-    result = await db.execute(select(RefreshTokenModel).where(RefreshTokenModel.user_id == current_user.id))
-    token_entry = result.scalars().first()
-    if token_entry:
-        await delete_refresh_token(token_entry.user_id, db)
-    print("User logged out, cookies deleted.")
-    return {"message": "Logged out"}
+    await delete_refresh_token(current_user.id, db)
+    print("User logged out successfully.")
+    return {"message": "Logged out successfully"}

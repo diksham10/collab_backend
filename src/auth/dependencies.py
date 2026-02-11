@@ -49,7 +49,7 @@ async def get_current_user(request: Request,response: Response, db: AsyncSession
                 key="access_token",
                 value=new_token,
                 httponly=True,
-                max_age=15*60,
+                max_age=1*60,
                 secure=True,
                 samesite="None"
             )

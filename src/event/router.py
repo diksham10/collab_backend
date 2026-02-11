@@ -8,7 +8,7 @@ from src.auth.models import Users
 from src.influencer.models import InfluencerProfile
 from src.event.models import Event
 from src.event.schema import EventApplicationCreate, EventApplicationRead, EventApplicationStatusUpdate, EventCreate, EventRead, EventUpdate, UserPreference
-from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status, all_events
+from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status, all_events, accept_reject_application
 from src.database import get_session
 from src.notification.services import create_notification
 from src.myenums import NotificationType
@@ -106,6 +106,23 @@ async def update_application_status_endpoint(application_id: UUID, status_in: Ev
     updated_application = await update_application_status(application_id, status_in, current_user, db)
     return updated_application
 
-
-
-
+@router.post("/accept_reject_application/{application_id}", response_model= EventApplicationRead)
+async def accept_reject_application_endpoint(application_id: UUID, status_in: EventApplicationStatusUpdate, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    updated_application = await accept_reject_application(application_id, status_in, current_user, db)
+    try:
+        await create_notification(
+            db=db,
+            user_id=updated_application.influencer_id,
+            type=NotificationType.application_update,
+            context={
+                "status": status_in.status,
+                "event_name": updated_application.event.name
+            },
+            data ={
+                "application_id": str(updated_application.id),
+                "event_id": str(updated_application.event_id)
+            }
+        )
+    except Exception as e:
+        print(f"Failed to create notification: {e}")    
+    return updated_application

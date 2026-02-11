@@ -240,5 +240,20 @@ async def update_application_status(application_id: UUID, new_status: str, db: A
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+async def accept_reject_application(application_id: UUID, accept: bool, db: AsyncSession) -> EventApplication:
+    result = await db.execute(select(EventApplication).where(EventApplication.id == application_id))
+    application = result.scalars().first()
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found.")
+    
+    application.status = "accepted" if accept else "rejected"
+    try:
+        db.add(application)
+        await db.commit()
+        await db.refresh(application)
+        return application
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
