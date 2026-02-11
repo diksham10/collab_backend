@@ -40,6 +40,7 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
         value=auth_token,
         httponly=True,
         max_age=15*60,
+        domain=".dixam.me" if IS_PRODUCTION else None,
         secure=IS_PRODUCTION,
         samesite="None" if IS_PRODUCTION else "Lax",
         path="/"
@@ -49,6 +50,7 @@ async def register(user_in: UserCreate,response: Response, db: AsyncSession = De
         value=refresh_token,
         httponly=True,
         max_age=7*24*3600,
+        domain=".dixam.me" if IS_PRODUCTION else None,
         secure=IS_PRODUCTION,
         samesite="None" if IS_PRODUCTION else "Lax",
         path="/"
@@ -84,6 +86,7 @@ async def login(
         value=access_token,
         httponly=True,
         max_age=15*60,
+        domain=".dixam.me",
         secure=IS_PRODUCTION,
         samesite="None" if IS_PRODUCTION else "Lax",
         path="/"
@@ -93,6 +96,7 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=7*24*3600,
+        domain=".dixam.me" ,
         secure=IS_PRODUCTION,
         samesite="None" if IS_PRODUCTION else "Lax",
         path="/"
@@ -210,12 +214,14 @@ async def logout(response: Response, current_user: Users = Depends(get_current_u
     print("Logging out user...")
     response.delete_cookie(
         key="access_token",
+        domain=".dixam.me",
         samesite="none" if IS_PRODUCTION else "Lax",
         secure=IS_PRODUCTION,
         path ="/"
     )
     response.delete_cookie(
         key="refresh_token",
+        domain=".dixam.me",
         path="/",
         samesite="none" if IS_PRODUCTION else "Lax",
         secure=IS_PRODUCTION,

@@ -32,6 +32,20 @@ def verify_password(plain_password: str, hashed_password: str)-> bool:
 
 async def create_user(user_in: UserCreate, db: AsyncSession ) -> Users:
     hashed_password = hash_password(user_in.password)
+    try :
+        result =await db.execute(select(Users).where(Users.username == user_in.username))
+        user_exists= result.scalars().first()
+        if user_exists: 
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists"
+            )
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username already exists"
+        )   
     new_user = Users(   
         email = user_in.email,
         username= user_in.username,
@@ -210,6 +224,7 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Re
             value=new_refresh_token,
             httponly=True,
             max_age=7*24*3600,
+            domain=".dixam.me" if IS_PRODUCTION else None,
             secure=IS_PRODUCTION,
             samesite="None" if IS_PRODUCTION else "Lax",
             path="/"

@@ -43,7 +43,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      ENV: ${ENV:-development}  
+      ENV: production  
       DATABASE_URL: postgresql+asyncpg://test:test@postgres:5432/test
       REDIS_URL: redis://redis:6379
       SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}

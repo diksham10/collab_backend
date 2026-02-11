@@ -1,3 +1,5 @@
+
+from typing import Optional
 from fastapi import APIRouter,Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,17 +32,17 @@ async def delete_event_endpoint( event_id: UUID, current_user: Users = Depends(g
     await delete_event( current_user, event_id, db)
 
 @router.post("/events_using_hybrid", response_model= list[EventRead])
-async def get_all_events_using_algorithms_endpoint(user_pref: UserPreference, db: AsyncSession = Depends(get_session)):
+async def get_all_events_using_algorithms_endpoint(user_pref: Optional[UserPreference] = None,current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     events = await get_all_events(user_pref=user_pref, db=db)
     return events
 
 @router.get("/all_events", response_model= list[EventRead])
-async def get_all_events_endpoint(db: AsyncSession = Depends(get_session)):
+async def get_all_events_endpoint(current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     events = await all_events(db=db)
     return events
 
 @router.get("/eventbyid/{event_id}", response_model= EventRead)
-async def get_event_endpoint(event_id: UUID, db: AsyncSession = Depends(get_session)):
+async def get_event_endpoint(event_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     event = await get_event(event_id, db)
     return event
 
