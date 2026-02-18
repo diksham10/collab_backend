@@ -55,17 +55,35 @@ class EventApplicationCreate(BaseModel):
     event_id: UUID
     influencer_id: UUID
 
+
+class EventMiniRead(BaseModel):
+    id: UUID 
+    title: str
+
+class InfluencerMiniRead(BaseModel):
+    id: UUID 
+    name: str
+
+class EventApplicationInfo(BaseModel):
+    event : EventMiniRead
+    influencer : InfluencerMiniRead
+    applied_at: datetime
+    status: str
+
 class EventApplicationRead(BaseModel):
 
     id: UUID
     event_id: UUID
     influencer_id: UUID
+
     status: str
     applied_at: datetime
 
     model_config = {
         "from_attributes": True
     }
+
+
 
 class EventApplicationStatusUpdate(BaseModel):
     status: Optional[str] = None

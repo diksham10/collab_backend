@@ -1,11 +1,14 @@
 from fastapi import HTTPException, Depends
+from sqlalchemy import select, outerjoin
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, time, date
 from src.auth.models import Users
 from src.brand.models import BrandProfile
 from src.influencer.models import InfluencerProfile
 from src.event.models import Event, EventApplication
-from src.event.schema import EventCreate, EventUpdate, EventApplicationCreate, UserPreference
+from src.event.schema import EventCreate, EventUpdate, EventApplicationCreate, UserPreference, EventApplicationRead, EventApplicationInfo, EventApplicationStatusUpdate
+from src.notification.services import create_notification
 from uuid import UUID, uuid4
 from sqlmodel import select
 from typing import Optional
@@ -20,8 +23,18 @@ async def get_event(event_id: UUID, db: AsyncSession) -> Event:
         raise HTTPException(status_code=404, detail="Event not found.")
     return event
 
-async def all_events(db: AsyncSession) -> list[Event]:
-    result = await db.execute(select(Event))
+async def all_events(influencer_id: UUID, db: AsyncSession) -> list[Event]:
+
+    stmt = (
+            select(Event)
+            .outerjoin(
+                EventApplication,
+                (Event.id == EventApplication.event_id) &
+                (EventApplication.influencer_id == influencer_id)
+            )
+            .where(EventApplication.id == None)
+        ) 
+    result = await db.execute(stmt)
     events = result.scalars().all()
     return events
 
@@ -219,16 +232,32 @@ async def apply_to_event(current_user: Users, application_in: EventApplicationCr
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-async def get_event_appplications(event_id: UUID, db: AsyncSession) -> list[EventApplication]:
-    result = await db.execute(select(EventApplication).where(EventApplication.event_id == event_id))
+async def get_event_appplications(event_id: UUID, db: AsyncSession) -> list[EventApplicationInfo]:
+    stmt = (
+            select(EventApplication)
+            .options(
+                selectinload(EventApplication.influencer),
+                selectinload(EventApplication.event)
+            )
+            .where(EventApplication.event_id == event_id)
+        )
+    result = await db.execute(stmt)
     applications = result.scalars().all()
     return applications
 
-async def update_application_status(application_id: UUID, new_status: str, db: AsyncSession) -> EventApplication:
+async def update_application_status(application_id: UUID, new_status: str,current_user: Users, db: AsyncSession) -> EventApplicationRead:
     result = await db.execute(select(EventApplication).where(EventApplication.id == application_id))
     application = result.scalars().first()
     if not application:
         raise HTTPException(status_code=404, detail="Application not found.")
+    
+    # Check if the current user is the owner of the event
+    result1 = await db.execute(select(Event).where(Event.id == application.event_id))
+    event = result1.scalars().first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found.") 
+    if event.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this application.")           
     
     application.status = new_status
     try:
@@ -240,20 +269,21 @@ async def update_application_status(application_id: UUID, new_status: str, db: A
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
-async def accept_reject_application(application_id: UUID, accept: bool, db: AsyncSession) -> EventApplication:
-    result = await db.execute(select(EventApplication).where(EventApplication.id == application_id))
-    application = result.scalars().first()
-    if not application:
-        raise HTTPException(status_code=404, detail="Application not found.")
-    
-    application.status = "accepted" if accept else "rejected"
-    try:
-        db.add(application)
-        await db.commit()
-        await db.refresh(application)
-        return application
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
 
 
+
+async def get_influencer_applications(influencer_id: UUID, db: AsyncSession) -> list[EventApplication]:
+    result = await db.execute(select(EventApplication).where(EventApplication.influencer_id == influencer_id))
+    applications = result.scalars().all()
+    return applications
+
+#service for getting evetns that influencer has applied to
+async def get_applied_events(influencer_id: UUID, db: AsyncSession) -> list[Event]:
+    stmt = (
+            select(Event)
+            .join(EventApplication, Event.id == EventApplication.event_id)
+            .where(EventApplication.influencer_id == influencer_id)
+        ) 
+    result = await db.execute(stmt)
+    events = result.scalars().all()
+    return events

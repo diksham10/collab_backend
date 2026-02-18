@@ -51,6 +51,16 @@ async def get_influencer(current_user: Users, db: AsyncSession) -> InfluencerRea
         raise HTTPException(status_code=404, detail="Influencer profile not found")
     return influencer
 
+#get influencer by name
+async def get_influencer_by_name(name: str, db: AsyncSession) -> InfluencerRead:
+    name = name.lower()
+    result = await db.execute(select(InfluencerProfile).where(InfluencerProfile.name.ilike(f"%{name}%")))
+    influencer = result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found")
+    return influencer
+
+
 async def update_influencer(current_user: Users, influencer_id: str, influencer_data: InfluencerUpdate, db: AsyncSession) -> InfluencerRead:
     result = await db.execute(select(Users).where(Users.id == current_user.id))
     user = result.scalar_one_or_none()

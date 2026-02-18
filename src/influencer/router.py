@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from src.auth.dependencies import get_current_user
 from src.auth.models import Users
-from src.influencer.services import create_influencer, update_influencer, get_influencer, create_social_link, get_social_links, delete_social_link
+from src.influencer.services import create_influencer, update_influencer, get_influencer,get_influencer_by_name, create_social_link, get_social_links, delete_social_link
 from src.influencer.schema import InfluencerCreate, InfluencerRead, InfluencerUpdate, SocialLinkRead, SocialLinkCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_session
@@ -22,6 +22,11 @@ async def get_influencerprofile(current_user: Users = Depends(get_current_user),
 @router.get("/get_influencer_by_id/{influencer_id}", response_model= InfluencerRead)
 async def get_influencer_by_id(influencer_id: str, db: AsyncSession=Depends(get_session)):
     influencer = await get_influencer_by_id(None, db, influencer_id)
+    return influencer
+
+@router.get("/get_influencer_by_name/{name}", response_model= InfluencerRead)
+async def get_influencer_by_name_endpoint(name: str, db: AsyncSession=Depends(get_session)):
+    influencer = await get_influencer_by_name(name, db)
     return influencer
 
 @router.put("/update_influencerprofile/{influencer_id}", response_model= InfluencerRead)

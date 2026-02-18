@@ -19,7 +19,7 @@ class Notification(SQLModel, table=True):
     data: Optional[dict] = Field(sa_column=Column(JSONB), default=None)
     is_read: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
-
+    
     # Relationship using forward reference
     user: Mapped["Users"] = Relationship(back_populates="notifications")
 

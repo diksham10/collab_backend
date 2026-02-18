@@ -7,8 +7,8 @@ from src.auth.dependencies import get_current_user
 from src.auth.models import Users
 from src.influencer.models import InfluencerProfile
 from src.event.models import Event
-from src.event.schema import EventApplicationCreate, EventApplicationRead, EventApplicationStatusUpdate, EventCreate, EventRead, EventUpdate, UserPreference
-from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status, all_events, accept_reject_application
+from src.event.schema import EventApplicationCreate, EventApplicationRead,EventApplicationInfo, EventApplicationStatusUpdate, EventCreate, EventRead, EventUpdate, UserPreference
+from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status, all_events, get_influencer_applications,get_applied_events
 from src.database import get_session
 from src.notification.services import create_notification
 from src.myenums import NotificationType
@@ -36,9 +36,15 @@ async def get_all_events_using_algorithms_endpoint(user_pref: Optional[UserPrefe
     events = await get_all_events(user_pref=user_pref, db=db)
     return events
 
-@router.get("/all_events", response_model= list[EventRead])
-async def get_all_events_endpoint(current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    events = await all_events(db=db)
+@router.get("/all_events/{influencer_id}", response_model= list[EventRead])
+async def get_all_events_endpoint(influencer_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    events = await all_events(influencer_id, db=db)
+    return events
+
+#this is endpoint for getting event that influencer has applied
+@router.get("/applied_events/{influencer_id}", response_model= list[EventRead])
+async def get_applied_events_endpoint(influencer_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    events = await get_applied_events(influencer_id, db=db)
     return events
 
 @router.get("/eventbyid/{event_id}", response_model= EventRead)
@@ -83,7 +89,8 @@ async def apply_to_event_endpoint(application_in: EventApplicationCreate, user: 
             type=NotificationType.application_update,
             context={
                 "status": "applied",
-                "influencer_name": influencer.name
+                "influencer_name": influencer.name,
+                "event_name": event.title
             },
             data ={
                 "application_id": str(application.id),
@@ -96,27 +103,34 @@ async def apply_to_event_endpoint(application_in: EventApplicationCreate, user: 
 
     return application
 
-@router.get ("/event_applications/{event_id}", response_model= list[EventApplicationRead])
+@router.get ("/event_applications/{event_id}", response_model= list[EventApplicationInfo])
 async def get_event_applications_endpoint(event_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    applications = await get_event_appplications(event_id, current_user, db)
+    applications = await get_event_appplications(event_id, db)
     return applications
+
 
 @router.patch ("/update_application_status/{application_id}", response_model= EventApplicationRead)
 async def update_application_status_endpoint(application_id: UUID, status_in: EventApplicationStatusUpdate, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    updated_application = await update_application_status(application_id, status_in, current_user, db)
-    return updated_application
+    updated_application = await update_application_status(application_id, status_in.status, current_user, db)
+    # create notification for influencer
+    event_result = await db.execute(select(Event).where(Event.id == updated_application.event_id))
+    event = event_result.scalar_one_or_none()
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    influencer_result = await db.execute(select(InfluencerProfile).where(InfluencerProfile.id == updated_application.influencer_id))    
+    influencer = influencer_result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found") 
 
-@router.post("/accept_reject_application/{application_id}", response_model= EventApplicationRead)
-async def accept_reject_application_endpoint(application_id: UUID, status_in: EventApplicationStatusUpdate, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    updated_application = await accept_reject_application(application_id, status_in, current_user, db)
     try:
         await create_notification(
             db=db,
-            user_id=updated_application.influencer_id,
+            user_id=influencer.user_id,
             type=NotificationType.application_update,
             context={
                 "status": status_in.status,
-                "event_name": updated_application.event.name
+                "event_name": event.title
             },
             data ={
                 "application_id": str(updated_application.id),
@@ -124,5 +138,33 @@ async def accept_reject_application_endpoint(application_id: UUID, status_in: Ev
             }
         )
     except Exception as e:
-        print(f"Failed to create notification: {e}")    
+        print(f"Failed to create notification: {e}")
+    
     return updated_application
+
+# @router.post("/accept_reject_application/{application_id}", response_model= EventApplicationRead)
+# async def accept_reject_application_endpoint(application_id: UUID, status_in: EventApplicationStatusUpdate, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+#     updated_application = await accept_reject_application(application_id, status_in, current_user, db)
+#     try:
+#         await create_notification(
+#             db=db,
+#             user_id=updated_application.influencer_id,
+#             type=NotificationType.application_update,
+#             context={
+#                 "status": status_in.status,
+#                 "event_name": updated_application.event.name
+#             },
+#             data ={
+#                 "application_id": str(updated_application.id),
+#                 "event_id": str(updated_application.event_id)
+#             }
+#         )
+#     except Exception as e:
+#         print(f"Failed to create notification: {e}")    
+#     return updated_application
+
+@router.get("/influencer_applications/{influencer_id}", response_model= list[EventApplicationRead])
+async def get_influencer_applications_endpoint(influencer_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    applications = await get_influencer_applications(influencer_id, db)
+    return applications 
+  

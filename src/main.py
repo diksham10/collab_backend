@@ -8,6 +8,8 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse
 from src.middleware.logging import logging_middleware
 from src.redis import redis
+from src.notification.sse_manger import sse_manager
+from src.chat.connection import manager as chat_manager
 
 app=FastAPI()
 
@@ -19,8 +21,28 @@ async def startup_event():
     except Exception as e:
         print(" Redis connection failed:", e)
         raise e
+    #sse
+    try:
+        await sse_manager.start()
+    except Exception as e:
+        print("Failed to start SSE manager:", e)
+        raise e
+    
+    # Start chat manager
+    try:
+        await chat_manager.start()
+    except Exception as e:
+        print("Failed to start chat manager:", e)
+        raise e
+    
 @app.on_event("shutdown")
 async def shutdown_event():
+    # Stop SSE manager
+    await sse_manager.stop()
+    
+    # Stop chat manager
+    await chat_manager.stop()
+
     await redis.close()
     print("Redis connection closed")
 
@@ -33,6 +55,7 @@ app.add_middleware(
     allow_origins=["http://localhost:3000",
                    "https://www.dixam.me",
                    "https://dixam.me",
+                   "https://api.dixam.me",
                    "http://localhost:8000"],
     allow_credentials=True,
     allow_methods=["*"],

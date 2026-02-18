@@ -179,63 +179,108 @@ async def reset_password(email: str, new_password: str, db: AsyncSession) -> Opt
     await db.refresh(user)
     return user
 
-async def refresh_access_token(refresh_token: str, db: AsyncSession,response: Response) -> Optional[str]:
+async def refresh_access_token(refresh_token: str, db: AsyncSession, response: Response) -> Optional[str]:
     import os
-    IS_PRODUCTION = os.getenv("ENV","development") == "production"
+    from src.redis import redis
+    
+    IS_PRODUCTION = os.getenv("ENV", "development") == "production"
     print("Refreshing access token...")
-    hashed_token = await hash_token(refresh_token)
-    print(f"Hashed refresh token: {hashed_token}")
+    
     try:
+        # Decode the JWT first
         payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: Optional[str] = payload.get("sub")        
+        user_id: Optional[str] = payload.get("sub")
         print(f"Decoded user_id from refresh token: {user_id}")
+        
         if not user_id:
             print("No user_id found in token payload")
             return None
 
+        # ✅ Use Redis lock to prevent concurrent refreshes
+        lock_key = f"refresh_lock:{user_id}"
+        lock_acquired = await redis.set(lock_key, "1", nx=True, ex=2)
+        
+        if not lock_acquired:
+            print(f"⏳ Another refresh in progress for user {user_id}, waiting...")
+            import asyncio
+            await asyncio.sleep(1)
+            
+            # Just create a new access token
+            user_result = await db.execute(select(Users).where(Users.id == UUID(user_id)))
+            user = user_result.scalar_one_or_none()
+            if user:
+                new_access_token = create_access_token(user_id, user.role)
+                print(f"✅ Created access token while waiting")
+                return new_access_token
+            return None
+        
+        try:
+            # Hash the incoming token to find it in DB
+            hashed_token = await hash_token(refresh_token)
+            print(f"Hashed refresh token: {hashed_token}")
 
-        result = await db.execute(
-            select(RefreshTokenModel).where(
-                RefreshTokenModel.user_id == user_id,
+            # Find the SPECIFIC token by BOTH user_id AND hashed_token
+            result = await db.execute(
+                select(RefreshTokenModel).where(
+                    RefreshTokenModel.user_id == UUID(user_id),
+                    RefreshTokenModel.hashed_token == hashed_token
+                )
             )
-        )
+            token_entry = result.scalars().first()
+            
+            if not token_entry:
+                print("Refresh token not found in database")
+                return None
+            
+            # Check if token is expired
+            if token_entry.expires_at < datetime.utcnow():
+                print("Refresh token expired")
+                await db.delete(token_entry)
+                await db.commit()
+                return None
 
-        token_entry = result.scalars().first()
-        print(f"Token entry from DB: {token_entry}")
-        if not token_entry:
-            return None
-        if token_entry.expires_at < datetime.utcnow():
-            await delete_refresh_token(token_entry.id, db)
-            return None
+            # Get user
+            result = await db.execute(select(Users).where(Users.id == UUID(user_id)))
+            user = result.scalar_one_or_none()
+            if not user:
+                print("User not found for the given user_id")
+                return None
 
+            # ✅ Create new access token
+            new_access_token = create_access_token(user_id, user.role)
+
+            # ✅ EXTEND the refresh token expiry in database
+            token_entry.expires_at = datetime.utcnow() + timedelta(days=7)
+            db.add(token_entry)
+            await db.commit()
+            
+            # ✅ RE-SET the SAME refresh token cookie with NEW max_age
+            # This tells the browser to keep the cookie for another 7 days
+            response.set_cookie(
+                key="refresh_token",
+                value=refresh_token,  # ✅ Same token, not new one!
+                httponly=True,
+                max_age=7*24*3600,  # ✅ Reset to 7 days from now
+                domain=".dixam.me" if IS_PRODUCTION else None,
+                secure=IS_PRODUCTION,
+                samesite="None" if IS_PRODUCTION else "Lax",
+                path="/"
+            )
+            
+            print(f"✅ Refresh token extended in DB until {token_entry.expires_at}")
+            print(f"✅ Refresh token cookie max_age reset to 7 days")
+            print(f"✅ New access token created")
+            
+            return new_access_token
+            
+        finally:
+            # ✅ Always release the lock
+            await redis.delete(lock_key)
         
-        
-        result = await db.execute(select(Users).where(Users.id == user_id))
-        user = result.scalar_one_or_none()
-        if not user:
-            print("User not found for the given user_id")
-            return None
-        new_access_token = create_access_token(user_id, user.role)
-        # validate old token and rotate
-        await delete_refresh_token(token_entry.user_id, db)
-        new_refresh_token = create_refresh_token(user_id)
-        response.set_cookie(
-            key="refresh_token",
-            value=new_refresh_token,
-            httponly=True,
-            max_age=7*24*3600,
-            domain=".dixam.me" if IS_PRODUCTION else None,
-            secure=IS_PRODUCTION,
-            samesite="None" if IS_PRODUCTION else "Lax",
-            path="/"
-        )
-        print("the new_access_token", new_access_token)
-        print("the new_refresh_token", new_refresh_token)
-        await save_refresh_token(UUID(user_id), await hash_token(new_refresh_token), db)
-        return new_access_token
-    except JWTError:
+    except JWTError as e:
+        print(f"❌ JWT decode error: {e}")
         return None
-
-
-
-
+    except Exception as e:
+        print(f"❌ Unexpected error in refresh_access_token: {e}")
+        await db.rollback()
+        return None

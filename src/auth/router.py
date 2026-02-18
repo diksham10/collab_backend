@@ -76,7 +76,8 @@ async def login(
     user = await authenticate_user(user_in.username, user_in.password, db)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid email or password")
-
+    
+   
     access_token = create_access_token(user.id, user.role)
     refresh_token = create_refresh_token(user.id)
     print("Setting cookies...", access_token, refresh_token)
@@ -85,8 +86,8 @@ async def login(
         key="access_token",
         value=access_token,
         httponly=True,
-        max_age=1*60,
-        domain=".dixam.me",
+        max_age=15*60,
+        domain=".dixam.me" if IS_PRODUCTION else None,
         secure=IS_PRODUCTION,
         samesite="None" if IS_PRODUCTION else "Lax",
         path="/"
@@ -96,7 +97,7 @@ async def login(
         value=refresh_token,
         httponly=True,
         max_age=7*24*3600,
-        domain=".dixam.me" ,
+        domain=".dixam.me" if IS_PRODUCTION else None,
         secure=IS_PRODUCTION,
         samesite="None" if IS_PRODUCTION else "Lax",
         path="/"
@@ -214,16 +215,16 @@ async def logout(response: Response, current_user: Users = Depends(get_current_u
     print("Logging out user...")
     response.delete_cookie(
         key="access_token",
-        domain=".dixam.me",
-        samesite="none" if IS_PRODUCTION else "Lax",
+        domain=".dixam.me" if IS_PRODUCTION else None,
+        samesite="None" if IS_PRODUCTION else "Lax",
         secure=IS_PRODUCTION,
         path ="/"
     )
     response.delete_cookie(
         key="refresh_token",
-        domain=".dixam.me",
+        domain=".dixam.me" if IS_PRODUCTION else None,
         path="/",
-        samesite="none" if IS_PRODUCTION else "Lax",
+        samesite="None" if IS_PRODUCTION else "Lax",
         secure=IS_PRODUCTION,
     )
     await delete_refresh_token(current_user.id, db)
