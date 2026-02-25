@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends
+from uuid import UUID
 from src.auth.dependencies import get_current_user
 from src.auth.models import Users
-from src.influencer.services import create_influencer, update_influencer, get_influencer,get_influencer_by_name, create_social_link, get_social_links, delete_social_link
-from src.influencer.schema import InfluencerCreate, InfluencerRead, InfluencerUpdate, SocialLinkRead, SocialLinkCreate
+from src.influencer.services import create_influencer, update_influencer, get_influencer, get_influencer_by_id, get_influencer_by_name, create_social_link, get_social_links, delete_social_link,get_chatable_brands
+from src.influencer.schema import BrandChatList, InfluencerCreate, InfluencerRead, InfluencerUpdate, SocialLinkRead, SocialLinkCreate
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.database import get_session
 
@@ -20,8 +21,8 @@ async def get_influencerprofile(current_user: Users = Depends(get_current_user),
     return influencer
 
 @router.get("/get_influencer_by_id/{influencer_id}", response_model= InfluencerRead)
-async def get_influencer_by_id(influencer_id: str, db: AsyncSession=Depends(get_session)):
-    influencer = await get_influencer_by_id(None, db, influencer_id)
+async def get_influencer_by_id_endpoint(influencer_id: UUID, db: AsyncSession=Depends(get_session)):
+    influencer = await get_influencer_by_id(influencer_id, db)
     return influencer
 
 @router.get("/get_influencer_by_name/{name}", response_model= InfluencerRead)
@@ -30,7 +31,7 @@ async def get_influencer_by_name_endpoint(name: str, db: AsyncSession=Depends(ge
     return influencer
 
 @router.put("/update_influencerprofile/{influencer_id}", response_model= InfluencerRead)
-async def update_influencerprofile(influencer_id: str, influencer_in: InfluencerUpdate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+async def update_influencerprofile(influencer_id: UUID, influencer_in: InfluencerUpdate, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     updated_influencer = await update_influencer(current_user, influencer_id, influencer_in, db)
     return updated_influencer
  
@@ -56,3 +57,9 @@ async def update_sociallink(sociallink_id: str, sociallink_in: SocialLinkCreate,
 async def delete_sociallink(sociallink_id: str, current_user: Users =Depends(get_current_user), db: AsyncSession = Depends(get_session)):
     await delete_social_link(current_user, sociallink_id, db)
     return {"message": "Social link deleted successfully"}  
+
+#get list of chatable brands for current influencer if eventapplication is accepted :
+@router.get("/chatable_brands", response_model= list[BrandChatList])
+async def get_chatable_brands_endpoint(current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    chatable_brands = await get_chatable_brands(current_user.id, db)
+    return chatable_brands

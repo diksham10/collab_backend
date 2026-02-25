@@ -8,7 +8,7 @@ from src.auth.models import Users
 from src.influencer.models import InfluencerProfile
 from src.event.models import Event
 from src.event.schema import EventApplicationCreate, EventApplicationRead,EventApplicationInfo, EventApplicationStatusUpdate, EventCreate, EventRead, EventUpdate, UserPreference
-from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status, all_events, get_influencer_applications,get_applied_events
+from src.event.services import create_event, delete_event, get_all_events, get_event, get_events_by_brand, apply_to_event, get_event_appplications, update_event, update_application_status, all_events,all_fuck_events, get_influencer_applications,get_applied_events
 from src.database import get_session
 from src.notification.services import create_notification
 from src.myenums import NotificationType
@@ -37,8 +37,13 @@ async def get_all_events_using_algorithms_endpoint(user_pref: Optional[UserPrefe
     return events
 
 @router.get("/all_events/{influencer_id}", response_model= list[EventRead])
-async def get_all_events_endpoint(influencer_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
-    events = await all_events(influencer_id, db=db)
+async def get_all_events_endpoint(influencer_id: UUID,applied: bool | None = None,status: str | None = None, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    events = await all_events(influencer_id, db, applied, status)
+    return events
+
+@router.get("/fuck_events/{influencer_id}", response_model=list[EventRead])
+async def get_fuck_events_endpoint(influencer_id: UUID, current_user: Users = Depends(get_current_user), db: AsyncSession = Depends(get_session)):
+    events = await all_fuck_events(influencer_id, db)
     return events
 
 #this is endpoint for getting event that influencer has applied

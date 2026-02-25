@@ -65,6 +65,7 @@ class InfluencerMiniRead(BaseModel):
     name: str
 
 class EventApplicationInfo(BaseModel):
+    id: UUID
     event : EventMiniRead
     influencer : InfluencerMiniRead
     applied_at: datetime

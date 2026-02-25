@@ -114,33 +114,35 @@ def role_required(role: str):
     return dependency
 
 
-async def get_current_user_ws(websocket: WebSocket, db: AsyncSession) -> Users:
-    """
-    Extract current user from JWT cookie for WebSocket connection
-    """
-    token = websocket.cookies.get("access_token")
-    if not token:
-        await websocket.close(code=1008)
-        raise Exception("Not authenticated")
 
+
+def decode_access_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: UUID = payload.get("sub")
-        if not user_id:
-            await websocket.close(code=1008)
-            raise Exception("Invalid token")
-    except ExpiredSignatureError:
-        await websocket.close(code=1008)
-        raise Exception("Token expired")
-    except JWTError as e:
-        await websocket.close(code=1008)
-        raise Exception(f"JWT error: {e}")
 
-    result = await db.execute(select(Users).where(Users.id == user_id))
-    user = result.scalar_one_or_none()
-    
-    if not user:
-        await websocket.close(code=1008)
-        raise Exception("User not found")
-    
+        exp = payload.get("exp")
+        if exp and datetime.utcfromtimestamp(exp) < datetime.utcnow():
+            return None
+
+        return payload
+
+    except JWTError:
+        return None
+ 
+async def get_current_user_ws(websocket: WebSocket, db: AsyncSession):
+    # Read token from cookie
+    token = websocket.cookies.get("access_token")
+
+    if not token:
+        return None
+
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    user = await db.get(Users, UUID(user_id))
     return user

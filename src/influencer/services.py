@@ -1,5 +1,5 @@
 from fastapi import Depends, HTTPException
-from sqlmodel import select
+from sqlmodel import UUID, distinct, select
 from src.influencer.schema import InfluencerCreate, InfluencerRead, InfluencerUpdate, SocialLinkCreate, SocialLinkRead, SocialLinkUpdate
 from src.influencer.models import InfluencerProfile, SocialLink
 from src.auth.models import Users
@@ -60,8 +60,16 @@ async def get_influencer_by_name(name: str, db: AsyncSession) -> InfluencerRead:
         raise HTTPException(status_code=404, detail="Influencer profile not found")
     return influencer
 
+#get influencer by id
+async def get_influencer_by_id(influencer_id: UUID, db: AsyncSession) -> InfluencerRead:
+    result = await db.execute(select(InfluencerProfile).where(InfluencerProfile.id == influencer_id))
+    influencer = result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found")
+    return influencer   
 
-async def update_influencer(current_user: Users, influencer_id: str, influencer_data: InfluencerUpdate, db: AsyncSession) -> InfluencerRead:
+
+async def update_influencer(current_user: Users, influencer_id: UUID, influencer_data: InfluencerUpdate, db: AsyncSession) -> InfluencerRead:
     result = await db.execute(select(Users).where(Users.id == current_user.id))
     user = result.scalar_one_or_none()
     if not user:
@@ -175,3 +183,30 @@ async def delete_social_link(current_user: Users, social_link_id: str, db: Async
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail="Failed to delete social link")
+
+#list chatable brands for influencer if brand accept aplication :
+from src.brand.models import BrandProfile
+from src.event.models import EventApplication,Event
+async def get_chatable_brands(current_user_id: UUID, db: AsyncSession) -> list[BrandProfile]:
+    #getting the influencer profile of the current user
+    result = await db.execute(select(InfluencerProfile).where(InfluencerProfile.user_id == current_user_id))
+    influencer = result.scalar_one_or_none()
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Influencer profile not found") 
+    
+    subquery = (
+        select(Event.brand_id)
+        .join(EventApplication)
+        .where(
+            EventApplication.influencer_id == influencer.id,
+            EventApplication.status == "accepted"
+        )
+        .distinct()
+    )
+
+    stmt = select(BrandProfile).where(
+        BrandProfile.id.in_(subquery)
+    )
+
+    result = await db.execute(stmt)
+    return result.scalars().all()

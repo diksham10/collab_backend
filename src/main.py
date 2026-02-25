@@ -82,7 +82,7 @@ app.include_router(test_router, prefix="/test", tags=["test"])
 app.include_router(brand_router, prefix="/brand", tags=["brand"])
 app.include_router(influencer_router, prefix="/influencer", tags=["influencer"])
 app.include_router(event_router, prefix="/event", tags=["event"])
-app.include_router(chat_router, prefix="/chat", tags=["chat"]) 
+app.include_router(chat_router, tags=["chat"])  # ✅ Removed duplicate prefix - router already has prefix="/chat"
 app.include_router(notification_router, prefix="/notification", tags=["notification"]) 
 
 

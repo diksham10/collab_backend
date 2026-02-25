@@ -107,3 +107,23 @@ async def delete_brand(current_user: Users, brand_id: UUID, db: AsyncSession):
         raise HTTPException(status_code=500, detail=f"Failed to delete brand: {str(e)}")
     return {"message": "Brand deleted successfully"}
 
+#list influencers that brand can chat with (based on accepted applications)
+from src.influencer.models import InfluencerProfile
+from src.event.models import Event, EventApplication
+
+async def get_chatable_influencers(current_user: Users, db: AsyncSession) -> list[InfluencerProfile]:
+    brand_subquery = select(BrandProfile.id).where(BrandProfile.user_id == current_user.id)
+
+    stmt = (
+        select(InfluencerProfile)
+        .join(EventApplication)
+        .join(Event)
+        .where(
+            Event.brand_id.in_(brand_subquery),
+            EventApplication.status == "accepted"
+        )
+        .distinct()
+    )
+    result = await db.execute(stmt)
+    influencers = result.scalars().all()
+    return influencers

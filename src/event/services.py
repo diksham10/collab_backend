@@ -1,5 +1,5 @@
 from fastapi import HTTPException, Depends
-from sqlalchemy import select, outerjoin
+from sqlalchemy import and_, select, outerjoin
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, time, date
@@ -23,54 +23,81 @@ async def get_event(event_id: UUID, db: AsyncSession) -> Event:
         raise HTTPException(status_code=404, detail="Event not found.")
     return event
 
-async def all_events(influencer_id: UUID, db: AsyncSession) -> list[Event]:
+async def all_events(influencer_id: UUID,db: AsyncSession, applied: bool | None = None, status: str | None = None) -> list[Event]:
+    stmt = select(Event).where(Event.status == "active")
+    
+    if applied is not None:
+        if applied:
+            stmt = stmt.join(EventApplication, Event.id == EventApplication.event_id).where(EventApplication.influencer_id == influencer_id)
+        else:
+            stmt = stmt.outerjoin(EventApplication, and_(Event.id == EventApplication.event_id, EventApplication.influencer_id == influencer_id)).where(EventApplication.id == None)
+    
+    if status is not None:
+        stmt = stmt.where(Event.status == status)
 
-    stmt = (
-            select(Event)
-            .outerjoin(
-                EventApplication,
-                (Event.id == EventApplication.event_id) &
-                (EventApplication.influencer_id == influencer_id)
-            )
-            .where(EventApplication.id == None)
-        ) 
     result = await db.execute(stmt)
     events = result.scalars().all()
     return events
 
+#to get the evnets that influencer has not applied to
+async def all_fuck_events(influencer_id: UUID, db: AsyncSession) -> list[Event]:
+    stmt = select(Event).where(Event.status == "active")
+    stmt = stmt.outerjoin(EventApplication, and_(Event.id == EventApplication.event_id, EventApplication.influencer_id == influencer_id)).where(EventApplication.id == None)
+    result = await db.execute(stmt)
+    events = result.scalars().all()
+    return events
 async def get_all_events(user_pref: UserPreference, db: AsyncSession) -> list[Event]:
     result = await db.execute(select(Event).where(Event.status == "active"))
     events = result.scalars().all()
-    def score_event(event: Event ) -> float:
-        
-        score = 0.0
 
-        # score basis
-        if event.budget:
-            score += min(event.budget /10000.0, 10.0)
+    def score_event(event: Event) -> float:
+        score = 0.0
+        matched_criteria = 0
+        total_criteria = 0
+
+        # 1. Location Match (Equal weight: 1.0)
         if user_pref.location and event.location:
+            total_criteria += 1
             if user_pref.location.lower() == event.location.lower():
-                score += 5.0
-        if user_pref.categories and event.category: 
+                score += 1.0
+                matched_criteria += 1
+
+        # 2. Category Match (Equal weight: 1.0)
+        if user_pref.categories and event.category:
+            total_criteria += 1
             if event.category.lower() in [cat.lower() for cat in user_pref.categories]:
-                score += 3.0
+                score += 1.0
+                matched_criteria += 1
+
+        # 3. Target Audience Match (Equal weight: 1.0)
         if user_pref.target_audience and event.target_audience:
+            total_criteria += 1
             if user_pref.target_audience.lower() in event.target_audience.lower():
-                score += 2.0
+                score += 1.0
+                matched_criteria += 1
+
+        # 4. Date Match (Equal weight: 1.0)
         if user_pref.start_date and event.start_date:
+            total_criteria += 1
             if event.start_date >= datetime.combine(user_pref.start_date, time.min):
                 score += 1.0
-        if user_pref.budget_range:
+                matched_criteria += 1
+
+        # 5. Budget Range Match (Equal weight: 1.0)
+        #    Binary check — either it fits the user's budget or it doesn't
+        if user_pref.budget_range and event.budget:
+            total_criteria += 1
             min_budget = user_pref.budget_range[0]
             max_budget = user_pref.budget_range[1]
-            if min_budget is not None and max_budget is not None and event.budget:
+            if min_budget is not None and max_budget is not None:
                 if min_budget <= event.budget <= max_budget:
-                    score += 5.0
+                    score += 1.0
+                    matched_criteria += 1
+
         return score
-    
+
     events.sort(key=lambda e: score_event(e), reverse=True)
     return events
-
 
 async def get_events_by_brand(brand_id: UUID, db: AsyncSession) -> list[Event]:
     result = await db.execute(select(Event).where(Event.brand_id == brand_id))
@@ -255,7 +282,7 @@ async def update_application_status(application_id: UUID, new_status: str,curren
     result1 = await db.execute(select(Event).where(Event.id == application.event_id))
     event = result1.scalars().first()
     if not event:
-        raise HTTPException(status_code=404, detail="Event not found.") 
+        raise HTTPException(status_code=404, detail="Event not found 1.") 
     if event.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to update this application.")           
     

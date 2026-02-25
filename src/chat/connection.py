@@ -145,7 +145,7 @@ class ConnectionManager:
             result = await db.execute(select(Users).where(Users.id == user_id))
             user = result.scalar_one_or_none()
             if user:
-                user.last_seen = datetime.now(timezone.utc)
+                user.last_seen = datetime.utcnow()
                 db.add(user)
                 await db.commit()
         
@@ -172,7 +172,7 @@ class ConnectionManager:
                     result = await db.execute(select(Users).where(Users.id == user_id))
                     user = result.scalar_one_or_none()
                     if user:
-                        user.last_seen = datetime.now(timezone.utc)
+                        user.last_seen = datetime.utcnow()
                         db.add(user)
                         await db.commit()
                 

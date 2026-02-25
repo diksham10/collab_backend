@@ -284,3 +284,55 @@ async def refresh_access_token(refresh_token: str, db: AsyncSession, response: R
         print(f"❌ Unexpected error in refresh_access_token: {e}")
         await db.rollback()
         return None
+    
+
+async def verify_access_token(token: str, db: AsyncSession) -> Users | None:
+    try:
+        # Decode JWT - ✅ FIXED: algorithms should be a list
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=[ALGORITHM],  # ✅ Was missing [] brackets and 's'
+        )
+
+        # Extract user id
+        user_id: str | None = payload.get("sub")
+        if user_id is None:
+            print("❌ Token missing 'sub'")
+            return None
+
+        # Convert to UUID if needed
+        try:
+            user_uuid = UUID(user_id)
+        except ValueError:
+            print("❌ Invalid UUID in token")
+            return None
+
+        # Fetch user from database
+        result = await db.execute(
+            select(Users).where(Users.id == user_uuid)
+        )
+        user = result.scalar_one_or_none()
+
+        if not user:
+            print("❌ User not found in DB")
+            return None
+
+        # ✅ Additional security checks
+        if not user.is_active:
+            print(f"❌ User {user_id} is inactive")
+            return None
+            
+        if not user.is_verified:
+            print(f"❌ User {user_id} is not verified")
+            return None
+
+        return user
+
+    except JWTError as e:
+        print(f"❌ JWT decode error: {e}")
+        return None
+
+    except Exception as e:
+        print(f"❌ Token verification error: {e}")
+        return None

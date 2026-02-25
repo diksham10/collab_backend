@@ -63,3 +63,11 @@ class SocialLinkUpdate(BaseModel):
     url: Optional[str] = None
     followers: Optional[int] = None
     linked_at: Optional[str] = None
+
+class BrandChatList(BaseModel):
+    user_id: UUID  # ✅ For WebSocket connection - Users.id
+    id: UUID       # BrandProfile.id for display purposes
+    name: str
+    model_config = {
+        "from_attributes": True
+    }

@@ -1,7 +1,7 @@
 from src.chat.models import Message
-from src.event.models import EventApplication
+from src.event.models import EventApplication, Event
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_, and_
+from sqlalchemy import distinct, select, or_, and_
 from uuid import UUID
 from typing import List
 
@@ -52,8 +52,8 @@ async def get_undeliverd_messages(
 async def get_chatable_users(user_id: UUID, db: AsyncSession) -> List[UUID]:
     """Get list of user IDs that this user can chat with (based on accepted applications)"""
     from src.auth.models import Users
-    from src.influencer.models import Influencer
-    from src.brand.models import Brand
+    from src.influencer.models import InfluencerProfile
+    from src.brand.models import BrandProfile
     
     # Get current user
     result = await db.execute(select(Users).where(Users.id == user_id))
@@ -63,57 +63,51 @@ async def get_chatable_users(user_id: UUID, db: AsyncSession) -> List[UUID]:
     
     chatable_user_ids = []
     
-    # If brand, get influencers from accepted applications
     if current_user.role == "brand":
-        result = await db.execute(
-            select(Brand).where(Brand.user_id == user_id)
+        # ✅ FIXED: Use scalars().first() instead of scalar_one_or_none()
+        brand_result = await db.execute(
+            select(BrandProfile.id).where(BrandProfile.user_id == user_id)
         )
-        brand = result.scalar_one_or_none()
-        if brand:
-            result = await db.execute(
-                select(EventApplication)
-                .where(
-                    and_(
-                        EventApplication.brand_id == brand.id,
-                        EventApplication.status == "accepted"
-                    )
+        brand_profile_id = brand_result.scalars().first()
+        
+        if not brand_profile_id:
+            return []
+        
+        result = await db.execute(
+            select(distinct(InfluencerProfile.user_id))
+            .join(EventApplication, EventApplication.influencer_id == InfluencerProfile.id)
+            .join(Event, Event.id == EventApplication.event_id)
+            .where(
+                and_(
+                    Event.brand_id == brand_profile_id,
+                    EventApplication.status == "accepted"
                 )
             )
-            applications = result.scalars().all()
-            for app in applications:
-                # Get influencer's user_id
-                result = await db.execute(
-                    select(Influencer).where(Influencer.id == app.influencer_id)
-                )
-                influencer = result.scalar_one_or_none()
-                if influencer:
-                    chatable_user_ids.append(influencer.user_id)
+        )
+        chatable_user_ids = list(result.scalars().all())
     
-    # If influencer, get brands from accepted applications
     elif current_user.role == "influencer":
-        result = await db.execute(
-            select(Influencer).where(Influencer.user_id == user_id)
+        # ✅ FIXED: Use scalars().first() instead of scalar_one_or_none()
+        influencer_result = await db.execute(
+            select(InfluencerProfile.id).where(InfluencerProfile.user_id == user_id)
         )
-        influencer = result.scalar_one_or_none()
-        if influencer:
-            result = await db.execute(
-                select(EventApplication)
-                .where(
-                    and_(
-                        EventApplication.influencer_id == influencer.id,
-                        EventApplication.status == "accepted"
-                    )
+        influencer_profile_id = influencer_result.scalars().first()
+        
+        if not influencer_profile_id:
+            return []
+        
+        result = await db.execute(
+            select(distinct(BrandProfile.user_id))
+            .join(Event, Event.brand_id == BrandProfile.id)
+            .join(EventApplication, EventApplication.event_id == Event.id)
+            .where(
+                and_(
+                    EventApplication.influencer_id == influencer_profile_id,
+                    EventApplication.status == "accepted"
                 )
             )
-            applications = result.scalars().all()
-            for app in applications:
-                # Get brand's user_id
-                result = await db.execute(
-                    select(Brand).where(Brand.id == app.brand_id)
-                )
-                brand = result.scalar_one_or_none()
-                if brand:
-                    chatable_user_ids.append(brand.user_id)
+        )
+        chatable_user_ids = list(result.scalars().all())
     
     return chatable_user_ids
 

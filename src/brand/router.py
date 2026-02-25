@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from src.database import get_session
-from src.brand.service import create_brand, get_brands, delete_brand, update_brand, get_brand_by_id, get_brand_by_name
-from src.brand.schema import BrandCreate, BrandRead, BrandUpdate
+from src.brand.service import create_brand, get_brands, delete_brand, update_brand, get_brand_by_id, get_brand_by_name, get_chatable_influencers
+from src.brand.schema import BrandCreate, BrandRead, BrandUpdate, InfluencerChatList
 from src.auth.models import Users
 from src.auth.dependencies import get_current_user
 from src.brand.dependencies import check_brand_limit
@@ -48,3 +48,10 @@ async def delete_brandprofile(brand_id: UUID, current_user: Users =Depends(get_c
     print("Deleting brand profile with ID:", brand_id)
     payload = await delete_brand(current_user, brand_id, db)
     return payload
+
+
+#list of influencers that brand can chat with (based on accepted applications)
+@router.get("/chatable_influencers", response_model= list[InfluencerChatList])
+async def get_chatable_influencers_endpoint(current_user: Users = Depends(get_current_user), db: AsyncSession=Depends(get_session)):
+    influencers = await get_chatable_influencers(current_user, db)
+    return influencers

@@ -26,7 +26,7 @@ async def verify_otp_endpoint(user_in :VerifyOtp, db: AsyncSession = Depends(get
     else:
         return {"message": "OTP is invalid or expired"}  
 
-@router.post("/resend_otp")
+@router.post("/resend_otp/{email}")
 async def resend_otp_endpoint(email: str, db: AsyncSession = Depends(get_session)):
 
     await create_resend_otp(db, email, subject="Resend OTP Code")

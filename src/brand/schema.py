@@ -33,6 +33,14 @@ class BrandUpdate(BaseModel):
     updated_at: Optional[str] = None
 
 
+class InfluencerChatList(BaseModel):
+    user_id: UUID  # ✅ For WebSocket connection - Users.id
+    id: UUID       # InfluencerProfile.id for display purposes
+    name: str
+    model_config = {
+        "from_attributes": True
+    }
+
 
 
     
