@@ -19,9 +19,101 @@ from src.chat.schema import (
 from uuid import UUID
 from src.database import get_session as get_db
 from typing import List
+from sqlalchemy import select
+from src.chat.models import Conversation, Message
 import json
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+
+
+# ==================== HELPER FUNCTION ====================
+
+async def build_conversation_response(
+    conv: Conversation,
+    current_user_id: UUID,
+    db: AsyncSession
+) -> ConversationResponse:
+    """
+    Build ConversationResponse manually to avoid lazy loading issues.
+    Also resolves display name dynamically for DIRECT chats.
+    """
+    # Get participant details
+    result = await db.execute(
+        select(Users).where(Users.id.in_(conv.participant_ids))
+    )
+    participants = result.scalars().all()
+    
+    # Get last message if exists (avoid lazy loading)
+    last_msg = None
+    if conv.last_message_id:
+        msg_result = await db.execute(
+            select(Message).where(Message.id == conv.last_message_id)
+        )
+        last_msg = msg_result.scalar_one_or_none()
+    
+    # Resolve conversation name dynamically for DIRECT chats
+    display_name = conv.name
+    display_avatar = conv.avatar_url
+    
+    if conv.type == "DIRECT":
+        # For DIRECT chats, show the OTHER person's name from their profile
+        for p in participants:
+            if p.id != current_user_id:
+                print(f"🔍 Current user: {current_user_id}, Other user: {p.id}, Role: {p.role}")
+                # Get profile-specific name based on role
+                if p.role == "brand":
+                    from src.brand.models import BrandProfile
+                    brand_result = await db.execute(
+                        select(BrandProfile).where(BrandProfile.user_id == p.id)
+                    )
+                    brand_profile = brand_result.scalars().first()
+                    if brand_profile:
+                        display_name = brand_profile.name
+                        print(f"✅ Brand profile found: {display_name}")
+                        # display_avatar = brand_profile.logo_url or brand_profile.profile_image
+                    else:
+                        display_name = p.username
+                        print(f"⚠️ No brand profile, using username: {display_name}")
+                elif p.role == "influencer":
+                    from src.influencer.models import InfluencerProfile
+                    influencer_result = await db.execute(
+                        select(InfluencerProfile).where(InfluencerProfile.user_id == p.id)
+                    )
+                    influencer_profile = influencer_result.scalars().first()
+                    if influencer_profile:
+                        display_name = influencer_profile.name 
+                        print(f"✅ Influencer profile found: {display_name}")
+                        # display_avatar = influencer_profile.profile_image
+                    else:
+                        display_name = p.username
+                        print(f"⚠️ No influencer profile, using username: {display_name}")
+                else:
+                    display_name = p.username
+                    print(f"⚠️ Unknown role, using username: {display_name}")
+                break
+    
+    conv_dict = {
+        'id': conv.id,
+        'type': conv.type,
+        'participant_ids': conv.participant_ids,
+        'name': display_name,
+        'avatar_url': display_avatar,
+        'description': conv.description,
+        'created_by_id': conv.created_by_id,
+        'admin_ids': conv.admin_ids,
+        'unread_counts': conv.unread_counts,
+        'last_message_id': conv.last_message_id,
+        'last_message_at': conv.last_message_at,
+        'created_at': conv.created_at,
+        'updated_at': conv.updated_at,
+        'participants': [
+            ParticipantInfo.model_validate(p).model_dump() for p in participants
+        ],
+        'last_message': MessageResponse.model_validate(last_msg).model_dump() if last_msg else None,
+        'unread_count': conv.unread_counts.get(str(current_user_id), 0)
+    }
+    
+    return ConversationResponse(**conv_dict)
 
 
 # ==================== CONVERSATION ENDPOINTS ====================
@@ -47,7 +139,7 @@ async def create_direct_conversation(
         db=db
     )
     
-    return conversation
+    return await build_conversation_response(conversation, current_user.id, db)
 
 
 @router.post("/conversations/group", response_model=ConversationResponse)
@@ -75,7 +167,7 @@ async def create_group_chat(
         db=db
     )
     
-    return conversation
+    return await build_conversation_response(conversation, current_user.id, db)
 
 
 @router.get("/conversations", response_model=List[ConversationResponse])
@@ -84,27 +176,13 @@ async def list_conversations(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all conversations for current user"""
-    from src.auth.models import Users
-    from sqlalchemy import select
-    
     conversations = await get_user_conversations(current_user.id, db)
     
-    # Enrich with participant info and unread counts
     enriched = []
     for conv in conversations:
-        # Get participant details
-        result = await db.execute(
-            select(Users).where(Users.id.in_(conv.participant_ids))
+        enriched.append(
+            await build_conversation_response(conv, current_user.id, db)
         )
-        participants = result.scalars().all()
-        
-        conv_dict = ConversationResponse.model_validate(conv).model_dump()
-        conv_dict['participants'] = [
-            ParticipantInfo.model_validate(p).model_dump() for p in participants
-        ]
-        conv_dict['unread_count'] = conv.unread_counts.get(str(current_user.id), 0)
-        
-        enriched.append(ConversationResponse(**conv_dict))
     
     return enriched
 
@@ -422,7 +500,7 @@ async def mark_as_read(
             user_id=current_user.id,
             db=db
         )
-        return conversation
+        return await build_conversation_response(conversation, current_user.id, db)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 

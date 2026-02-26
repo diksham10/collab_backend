@@ -275,8 +275,9 @@ async def create_message_in_conversation(
     )
     
     db.add(message)
+    await db.flush()  # Flush to generate message.id before using it
     
-    # Update conversation's last message
+    # Update conversation's last message (now that message.id exists)
     conversation.last_message_id = message.id
     conversation.last_message_at = datetime.utcnow()
     
@@ -318,25 +319,15 @@ async def mark_conversation_as_read(
     unread_counts[str(user_id)] = 0
     conversation.unread_counts = unread_counts
     
-    # Mark all unread messages as read
-    await db.execute(
-        select(Message)
-        .where(
-            and_(
-                Message.conversation_id == conversation_id,
-                ~Message.read_by.contains([user_id])
-            )
-        )
-    )
-    
-    # Update read_by arrays (PostgreSQL array append)
-    from sqlalchemy import update
+    # Update read_by arrays (PostgreSQL array append) only for messages not already read
+    from sqlalchemy import update, not_
     await db.execute(
         update(Message)
         .where(
             and_(
                 Message.conversation_id == conversation_id,
-                Message.sender_id != user_id
+                Message.sender_id != user_id,
+                not_(user_id == any_(Message.read_by))
             )
         )
         .values(read_by=func.array_append(Message.read_by, user_id))
