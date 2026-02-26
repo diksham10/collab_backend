@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from src.brand.models import BrandProfile
     from influencer.models import InfluencerProfile
     from event.models import Event, EventApplication
-    from chat.models import Message
+    from chat.models import Message, Conversation
     from notification.models import Notification
     from ratings.models import Rating
     from admin_logs.models import AdminLog
@@ -46,6 +46,10 @@ class Users(SQLModel, table=True):
         back_populates="receiver",
         sa_relationship_kwargs={"foreign_keys": "[Message.receiver_id]", "cascade": "all, delete-orphan"}
     )
+    created_conversations: Mapped[List["Conversation"]] = Relationship(
+        back_populates="created_by",
+        sa_relationship_kwargs={"foreign_keys": "[Conversation.created_by_id]", "cascade": "all, delete-orphan"}
+    )
     notifications: Mapped[List["Notification"]] = Relationship(back_populates="user", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     ratings_given: Mapped[List["Rating"]] = Relationship(
         back_populates="rater",
@@ -61,7 +65,7 @@ class Users(SQLModel, table=True):
 from src.brand.models import BrandProfile
 from src.influencer.models import InfluencerProfile
 from src.event.models import Event, EventApplication
-from src.chat.models import Message
+from src.chat.models import Message, Conversation
 from src.notification.models import Notification
 from src.ratings.models import Rating
 from src.admin_logs.models import AdminLog

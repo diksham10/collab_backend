@@ -132,13 +132,19 @@ def decode_access_token(token: str):
 async def get_current_user_ws(websocket: WebSocket, db: AsyncSession):
     # Read token from cookie
     token = websocket.cookies.get("access_token")
+    refresh_token = websocket.cookies.get("refresh_token")
+    # print('🔑 WebSocket token: ', refreshtoken)
 
     if not token:
         return None
 
     payload = decode_access_token(token)
     if not payload:
-        return None
+        # Decode the JWT first
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        if not payload:
+            return None
+        
 
     user_id = payload.get("sub")
     if not user_id:

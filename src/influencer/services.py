@@ -21,6 +21,15 @@ async def create_influencer(current_user: Users, influencer: InfluencerCreate, d
         raise HTTPException(status_code=403, detail="Only influencer users can create influencer profiles")
     print("Creating influencer profile for user:", user.id)
 
+    #to check if the influencer name already exists
+    if influencer.name:
+        result2 = await db.execute(select(InfluencerProfile).where(InfluencerProfile.name == influencer.name))
+        existing_name = result2.scalar_one_or_none()
+        if existing_name:
+            raise HTTPException(status_code=400, detail="Influencer name already exists. Please choose a different name.")  
+        
+
+
     new_influencer = InfluencerProfile(
         user_id = current_user.id,
         name = user.username if not influencer.name else influencer.name,
