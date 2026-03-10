@@ -23,7 +23,7 @@ jobs:
       - name: Build & Push Backend Image
         uses: docker/build-push-action@v4
         with:
-          context: /home/dick_endra/Documents/collab-backend  # Path to backend Dockerfile
+          context: .  # Path to backend Dockerfile
           push: true
           tags: dixam/collab-backend-api:latest
 
