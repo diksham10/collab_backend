@@ -139,6 +139,9 @@ def create_refresh_token(user_id: str) -> str:
 async def update_user(user: Users, user_in: UserUpdate, db: AsyncSession) -> Users:
     if user_in.email is not None:
         user.email = user_in.email
+    
+    if user_in.username is not None:
+        user.username = user_in.username    
 
     if user_in.password: 
         user.hashed_password = hash_password(user_in.password)

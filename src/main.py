@@ -129,6 +129,6 @@ app.openapi = custom_openapi
 
 @app.get("/")
 async def read_root():
-    return {"message": "Welcome to the Collab Backend API"}
+    return {"message": "Welcome to the Collab Backend API after cicd deployment!"}
 # SQLModel.metadata.create_all(engine) #because async engine, we cant use this method to create tables
 

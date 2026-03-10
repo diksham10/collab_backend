@@ -202,11 +202,16 @@ class ConnectionManager:
         exists = await redis.exists(f"chat_online:{user_id}")
         return bool(exists)
 
-    async def send_message(self, user_id: UUID, payload: dict):
-        """Send chat message to user via Redis pub/sub"""
+    async def send_message(self, user_id: UUID, payload: dict) -> bool:
+        """Send chat message to user via Redis pub/sub. Returns True if user is online."""
+        # Check if user is online across all workers via Redis
+        is_online = await self.is_online(user_id)
+        
         channel = f"chat:{user_id}"
         await redis.publish(channel, json.dumps(payload))
-        print(f"📢 Published chat message to Redis channel: {channel}")
+        print(f"📢 Published chat message to Redis channel: {channel} (user online: {is_online})")
+        
+        return is_online  # Return True if user is connected
 
     async def send_typing_indicator(self, from_user_id: UUID, to_user_id: UUID, is_typing: bool):
         """Send typing indicator"""

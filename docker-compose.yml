@@ -33,9 +33,7 @@ services:
   # FastAPI App
   # -----------------------------
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: dixam/collab-backend-api:latest
     restart: unless-stopped
     depends_on:
       postgres:
@@ -62,9 +60,7 @@ services:
   # Alembic Migrations
   # -----------------------------
   migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: dixam/collab-backend-api:latest
     depends_on:
       postgres:
         condition: service_healthy

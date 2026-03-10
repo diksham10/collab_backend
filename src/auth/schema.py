@@ -34,6 +34,7 @@ class UserRead(BaseModel):
 #for updating user
 class UserUpdate(BaseModel):
     email: Optional[EmailStr] = None
+    username: Optional[str] = None
     password: Optional[str] = None
     role: Optional[UserRole] = None
 
