@@ -72,13 +72,11 @@ jobs:
             docker run -d \
               --name $NEW \
               --network backend \
+              --env-file /home/azureuser/.env \
               -p $PORT:8000 \
               -e ENV=production \
               -e DATABASE_URL=postgresql+asyncpg://test:test@postgres:5432/test \
               -e REDIS_URL=redis://redis:6379 \
-              -e SECRET_KEY=${SECRET_KEY} \
-              -e REFRESH_SECRET_KEY=${REFRESH_SECRET_KEY} \
-              -e ACCESS_TOKEN_EXPIRE_MINUTES=60 \
               dixam/collab-backend-api:latest
 
 
