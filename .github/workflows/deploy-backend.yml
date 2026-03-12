@@ -90,11 +90,11 @@ jobs:
 
             echo "Switching nginx upstream"
 
-            docker exec nginx sed -i "s/server $OLD:8000;/server $NEW:8000;/" /etc/nginx/nginx.conf
+            docker exec azureuser-nginx-1 sed -i "s/server $OLD:8000;/server $NEW:8000;/" /etc/nginx/nginx.conf
 
 
             echo "Reload nginx (no downtime)"
-            docker exec nginx nginx -s reload
+            docker exec azureuser-nginx-1 nginx -s reload
 
 
             echo "Stopping old environment"
