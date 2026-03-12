@@ -129,7 +129,7 @@ app.openapi = custom_openapi
 
 @app.get("/")
 async def read_root():
-    return {"message": "Welcome to the Collab Backend API after cicd deployment test3!"}
+    return {"message": "Welcome to the Collab Backend API after cicd deployment test4!"}
 
 
 # Health check endpoint
