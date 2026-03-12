@@ -129,6 +129,12 @@ app.openapi = custom_openapi
 
 @app.get("/")
 async def read_root():
-    return {"message": "Welcome to the Collab Backend API after cicd deployment test2!"}
+    return {"message": "Welcome to the Collab Backend API after cicd deployment test3!"}
+
+
+# Health check endpoint
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 # SQLModel.metadata.create_all(engine) #because async engine, we cant use this method to create tables
 
